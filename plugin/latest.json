@@ -1,6 +1,6 @@
 {
-  "version": "0.3.7",
-  "notes": "Fix: portrait photos now fit fully in the preview.",
-  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.3.7.ccx",
+  "version": "0.3.8",
+  "notes": "Refresh now also checks for updates. Portrait photos fit fully in the preview.",
+  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.3.8.ccx",
   "page": "https://from-ttraw.github.io/ttraw-grain/"
 }
