@@ -1,6 +1,6 @@
 {
-  "version": "0.3.5",
-  "notes": "Fit view with pinch zoom, Refresh button, smoother preview, update notices.",
-  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.3.5.ccx",
+  "version": "0.3.6",
+  "notes": "Preview zoom buttons simplified to Fit and 100% (pinch or scroll for any zoom).",
+  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.3.6.ccx",
   "page": "https://from-ttraw.github.io/ttraw-grain/"
 }
