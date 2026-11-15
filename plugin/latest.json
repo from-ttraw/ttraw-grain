@@ -1,6 +1,6 @@
 {
-  "version": "0.3.8",
-  "notes": "Refresh now also checks for updates. Portrait photos fit fully in the preview.",
-  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.3.8.ccx",
+  "version": "0.3.9",
+  "notes": "Cleaner panel: section descriptions moved to hover tips.",
+  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.3.9.ccx",
   "page": "https://from-ttraw.github.io/ttraw-grain/"
 }
