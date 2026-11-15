@@ -1,8 +1,8 @@
 {
-  "version": "0.4.2",
-  "notes": "Grain now goes right above the selected layer (text and layers above stay clean). Earlier effect layers are kept for comparison; select one to see and edit its settings. Apply is always visible.",
-  "notes_ko": "선택한 레이어 바로 위에 효과가 들어가요(위의 텍스트·레이어는 그대로). 이전 효과 레이어는 비교용으로 남고, 선택하면 설정을 보고 수정할 수 있어요. 적용 버튼이 항상 보여요.",
-  "notes_ja": "選択したレイヤーのすぐ上に効果が入ります（上のテキストやレイヤーはそのまま）。以前の効果レイヤーは比較用に残り、選択すると設定を確認・編集できます。適用ボタンが常に表示されます。",
-  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.4.2.ccx",
+  "version": "0.4.3",
+  "notes": "Grain recalibrated on 31 of the author's film rolls: blue-heavy, blue-yellow colour grain like real colour negative, more of it at 400. Choices are now ISO 100 / 200 / 400 / Half. Each photo gets its own grain pattern (the same photo always keeps it).",
+  "notes_ko": "필름 31롤을 다시 분석해 그레인을 맞췄어요. 실제 컬러 네거티브처럼 파랑이 거칠고 파랑·노랑 색 얼룩이 생기며, 400일수록 강해요. 선택지는 ISO 100 / 200 / 400 / 하프. 사진마다 다른 그레인 패턴이 들어가요(같은 사진은 항상 같은 패턴).",
+  "notes_ja": "フィルム31本を再分析して粒子を調整しました。実際のカラーネガのように青が粗く、青・黄の色ムラが出て、400ほど強くなります。選択肢はISO 100 / 200 / 400 / ハーフ。写真ごとに異なる粒子パターンになります（同じ写真は常に同じパターン）。",
+  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.4.3.ccx",
   "page": "https://from-ttraw.github.io/ttraw-grain/"
 }
