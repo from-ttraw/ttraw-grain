@@ -160,7 +160,7 @@
 <body>
 
 <div class="app">
-  <div class="stage" id="viewer"><canvas id="under" aria-hidden="true"></canvas><canvas id="view" aria-label="Photo with grain"></canvas></div>
+  <div class="stage" id="viewer"><canvas id="under" aria-hidden="true"></canvas><canvas id="view" data-i18n-aria="a.view" aria-label="Photo with grain"></canvas></div>
 
   <header class="top">
     <div class="brand">
@@ -168,46 +168,46 @@
       <a href="https://www.instagram.com/from_ttraw/" target="_blank" rel="noopener">@from_ttraw</a>
     </div>
     <div class="actions">
-      <label class="icon" title="Open photo" aria-label="Open photo">
+      <label class="icon" data-i18n-title="open" data-i18n-aria="open" title="Open photo" aria-label="Open photo">
         <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>
         <input type="file" id="file" accept="image/*">
       </label>
-      <button class="icon" id="compare" type="button" title="Hold to see original" aria-label="Hold to see original">
+      <button class="icon" id="compare" type="button" data-i18n-title="compare" data-i18n-aria="compare" title="Hold to see original" aria-label="Hold to see original">
         <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14"/><path d="M12 5h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-7z" fill="currentColor" stroke="none" opacity="0.35"/></svg>
       </button>
-      <button class="icon save" id="save" type="button" title="Save full-size JPEG">
-        <svg viewBox="0 0 24 24"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>Save
+      <button class="icon save" id="save" type="button" data-i18n-title="save.tip" title="Save full-size JPEG">
+        <svg viewBox="0 0 24 24"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg><span data-i18n="save">Save</span>
       </button>
     </div>
   </header>
 
   <div class="chips">
-    <button class="chip on" id="zFit" type="button">Fit</button>
+    <button class="chip on" id="zFit" type="button" data-i18n="fit">Fit</button>
     <button class="chip" id="z100" type="button">100%</button>
-    <span class="chip label-chip" id="badge">Sample photo</span>
+    <span class="chip label-chip" id="badge" data-i18n="sample">Sample photo</span>
   </div>
-  <canvas id="mini" hidden aria-label="Whole photo. Tap to move around."></canvas>
-  <div class="before-tag" id="beforeTag" hidden>Original</div>
+  <canvas id="mini" hidden data-i18n-aria="a.mini" aria-label="Whole photo. Tap to move around."></canvas>
+  <div class="before-tag" id="beforeTag" hidden data-i18n="original">Original</div>
   <div class="progress" id="bar" hidden><i id="barFill"></i></div>
   <div class="toast" id="status" role="status" hidden></div>
 
-  <section class="sheet" id="sheet" aria-label="Grain settings">
+  <section class="sheet" id="sheet" data-i18n-aria="a.sheet" aria-label="Grain settings">
     <nav class="tabs" role="tablist">
-      <button class="tab" role="tab" type="button" data-tab="amount" aria-selected="true"><b>Amount</b><small id="tAmount">100</small></button>
-      <button class="tab" role="tab" type="button" data-tab="iso" aria-selected="false"><b>ISO</b><small id="tIso">400</small></button>
-      <button class="tab" role="tab" type="button" data-tab="color" aria-selected="false"><b>Color</b><small id="tColor">Color</small></button>
-      <button class="tab" role="tab" type="button" data-tab="frame" aria-selected="false"><b>Frame</b><small id="tFrame">Full</small></button>
-      <button class="tab" role="tab" type="button" data-tab="glow" aria-selected="false"><b>Glow</b><small id="tGlow">0</small></button>
-      <button class="tab" role="tab" type="button" data-tab="soft" aria-selected="false"><b>Soft</b><small id="tSoft">0</small></button>
+      <button class="tab" role="tab" type="button" data-tab="amount" aria-selected="true"><b data-i18n="amount">Amount</b><small id="tAmount">100</small></button>
+      <button class="tab" role="tab" type="button" data-tab="iso" aria-selected="false"><b data-i18n="iso">ISO</b><small id="tIso">400</small></button>
+      <button class="tab" role="tab" type="button" data-tab="color" aria-selected="false"><b data-i18n="color">Color</b><small id="tColor">Color</small></button>
+      <button class="tab" role="tab" type="button" data-tab="frame" aria-selected="false"><b data-i18n="frame">Frame</b><small id="tFrame">Full</small></button>
+      <button class="tab" role="tab" type="button" data-tab="glow" aria-selected="false"><b data-i18n="glow">Glow</b><small id="tGlow">0</small></button>
+      <button class="tab" role="tab" type="button" data-tab="soft" aria-selected="false"><b data-i18n="soft">Soft</b><small id="tSoft">0</small></button>
     </nav>
 
     <div class="pane" data-pane="amount" role="tabpanel">
-      <div class="pane-head"><span>Grain amount</span><input class="value" type="number" id="amountNum" min="0" max="200" step="1" value="100" aria-label="Amount value"></div>
-      <input type="range" id="amount" min="0" max="200" step="1" value="100" aria-label="Amount">
-      <div class="hint">100 matches the measured film. Double-tap the slider to reset.</div>
+      <div class="pane-head"><span data-i18n="amount.head">Grain amount</span><input class="value" type="number" id="amountNum" min="0" max="200" step="1" value="100" data-i18n-aria="amount" aria-label="Amount value"></div>
+      <input type="range" id="amount" min="0" max="200" step="1" value="100" data-i18n-aria="amount" aria-label="Amount">
+      <div class="hint" data-i18n="amount.hint">100 matches the measured film. Double-tap the slider to reset.</div>
     </div>
     <div class="pane" data-pane="iso" role="tabpanel" hidden>
-      <div class="pane-head"><span>Film speed</span><small>Higher ISO, coarser grain</small></div>
+      <div class="pane-head"><span data-i18n="iso.head">Film speed</span><small data-i18n="iso.sub">Higher ISO, coarser grain</small></div>
       <div class="seg mono" role="radiogroup" aria-label="Film speed">
         <label><input type="radio" name="iso" id="iso100" value="100"><span>100</span></label>
         <label><input type="radio" name="iso" id="iso200" value="200"><span>200</span></label>
@@ -216,39 +216,39 @@
       </div>
     </div>
     <div class="pane" data-pane="color" role="tabpanel" hidden>
-      <div class="pane-head"><span>Grain color</span><small>Color negative or black and white</small></div>
+      <div class="pane-head"><span data-i18n="color.head">Grain color</span><small data-i18n="color.sub">Color negative or black and white</small></div>
       <div class="seg" role="radiogroup" aria-label="Grain color">
-        <label><input type="radio" name="color" id="colorC" value="color" checked><span>Color</span></label>
-        <label><input type="radio" name="color" id="colorBW" value="bw"><span>B&amp;W</span></label>
+        <label><input type="radio" name="color" id="colorC" value="color" checked><span data-i18n="color.color">Color</span></label>
+        <label><input type="radio" name="color" id="colorBW" value="bw"><span data-i18n="color.bw">B&amp;W</span></label>
       </div>
     </div>
     <div class="pane" data-pane="frame" role="tabpanel" hidden>
-      <div class="pane-head"><span>Frame size</span><small>Half frame enlarges the grain</small></div>
+      <div class="pane-head"><span data-i18n="frame.head">Frame size</span><small data-i18n="frame.sub">Half frame enlarges the grain</small></div>
       <div class="seg" role="radiogroup" aria-label="Frame">
-        <label><input type="radio" name="frame" id="frameFull" value="full" checked><span>Full</span></label>
-        <label><input type="radio" name="frame" id="frameHalf" value="half"><span>Half</span></label>
+        <label><input type="radio" name="frame" id="frameFull" value="full" checked><span data-i18n="frame.full">Full</span></label>
+        <label><input type="radio" name="frame" id="frameHalf" value="half"><span data-i18n="frame.half">Half</span></label>
       </div>
     </div>
     <div class="pane" data-pane="glow" role="tabpanel" hidden>
-      <div class="pane-head"><span>Glow</span><input class="value" type="number" id="glowNum" min="0" max="100" step="1" value="0" aria-label="Glow value"></div>
+      <div class="pane-head"><span data-i18n="glow">Glow</span><input class="value" type="number" id="glowNum" min="0" max="100" step="1" value="0" aria-label="Glow value"></div>
       <input type="range" id="glow" min="0" max="100" step="1" value="0" aria-label="Glow">
-      <div class="hint">Highlights bloom outward with a faint warm halo. Double-tap to reset.</div>
+      <div class="hint" data-i18n="glow.hint">Highlights bloom outward with a faint warm halo. Double-tap to reset.</div>
     </div>
     <div class="pane" data-pane="soft" role="tabpanel" hidden>
-      <div class="pane-head"><span>Soft</span><input class="value" type="number" id="softNum" min="0" max="100" step="1" value="0" aria-label="Soft value"></div>
+      <div class="pane-head"><span data-i18n="soft">Soft</span><input class="value" type="number" id="softNum" min="0" max="100" step="1" value="0" aria-label="Soft value"></div>
       <input type="range" id="soft" min="0" max="100" step="1" value="0" aria-label="Soft">
-      <div class="hint">The gentle softness of a film lens and a lab scan. Double-tap to reset.</div>
+      <div class="hint" data-i18n="soft.hint">The gentle softness of a film lens and a lab scan. Double-tap to reset.</div>
     </div>
   </section>
 
   <div class="result" id="result" hidden>
     <div class="result-card">
-      <p>Long-press the image (phone) or right-click it (computer) to save it.</p>
-      <img id="resultImg" alt="Photo with grain, full size">
+      <p data-i18n="result.hint">Long-press the image (phone) or right-click it (computer) to save it.</p>
+      <img id="resultImg" data-i18n-alt="a.view" alt="Photo with grain, full size">
       <div class="result-actions">
-        <button class="icon save" id="shareBtn" type="button" hidden>Save to Photos</button>
-        <a class="icon" id="dlLink" download>Download</a>
-        <button class="icon" id="closeResult" type="button">Close</button>
+        <button class="icon save" id="shareBtn" type="button" hidden data-i18n="save.photos">Save to Photos</button>
+        <a class="icon" id="dlLink" download data-i18n="download">Download</a>
+        <button class="icon" id="closeResult" type="button" data-i18n="close">Close</button>
       </div>
     </div>
   </div>
@@ -772,6 +772,75 @@ self.onmessage = (e) => {
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
+  /* ---------- language: follows the phone / browser language (Korean, Japanese, otherwise English) ---------- */
+  const I18N = {
+    en: { open: "Open photo", compare: "Hold to see original", save: "Save", "save.tip": "Save full-size JPEG", fit: "Fit", sample: "Sample photo", original: "Original",
+      amount: "Amount", iso: "ISO", color: "Color", frame: "Frame", glow: "Glow", soft: "Soft",
+      "amount.head": "Grain amount", "amount.hint": "100 matches the measured film. Double-tap the slider to reset.",
+      "iso.head": "Film speed", "iso.sub": "Higher ISO, coarser grain",
+      "color.head": "Grain color", "color.sub": "Color negative or black and white", "color.color": "Color", "color.bw": "B&W",
+      "frame.head": "Frame size", "frame.sub": "Half frame enlarges the grain", "frame.full": "Full", "frame.half": "Half",
+      "glow.hint": "Highlights bloom outward with a faint warm halo. Double-tap to reset.",
+      "soft.hint": "The gentle softness of a film lens and a lab scan. Double-tap to reset.",
+      "result.hint": "Long-press the image (phone) or right-click it (computer) to save it.", close: "Close",
+      "save.photos": "Save to Photos", download: "Download",
+      "a.view": "Photo with grain", "a.mini": "Whole photo. Tap to move around.", "a.sheet": "Grain settings",
+      "st.notimage": "That file isn't an image. Open a JPEG, PNG or HEIC photo.", "st.opening": "Opening…",
+      "st.cantopen": "This browser couldn't open that photo. Try a JPEG or PNG.",
+      "st.resized": "Resized to {w} × {h} px to fit this browser's limit (original {o}).",
+      "st.adding": "Adding grain to {w} × {h} px…", "st.encoding": "Encoding JPEG…",
+      "st.saved": "Saved {f} ({s} s).", "st.done": "Done ({s} s).", "st.cancelled": "Save cancelled.",
+      "st.failed": "Couldn't finish this photo. It may be too large for this device; try a smaller copy." },
+    ko: { open: "사진 열기", compare: "누르고 있으면 원본", save: "저장", "save.tip": "원본 크기 JPEG로 저장", fit: "전체", sample: "샘플 사진", original: "원본",
+      amount: "양", iso: "감도", color: "색", frame: "프레임", glow: "글로우", soft: "소프트",
+      "amount.head": "그레인 양", "amount.hint": "100이 실측 필름과 같은 세기예요. 슬라이더를 두 번 누르면 처음 값으로 돌아가요.",
+      "iso.head": "필름 감도", "iso.sub": "감도가 높을수록 입자가 굵어요",
+      "color.head": "그레인 색", "color.sub": "컬러 네거티브 또는 흑백", "color.color": "컬러", "color.bw": "흑백",
+      "frame.head": "프레임 크기", "frame.sub": "하프 프레임은 입자가 더 커요", "frame.full": "풀", "frame.half": "하프",
+      "glow.hint": "밝은 부분이 따뜻한 빛으로 은은하게 번져요. 두 번 누르면 0으로 돌아가요.",
+      "soft.hint": "필름 렌즈와 현상소 스캔 특유의 부드러움이에요. 두 번 누르면 0으로 돌아가요.",
+      "result.hint": "사진을 길게 누르거나(휴대폰) 우클릭해서(컴퓨터) 저장하세요.", close: "닫기",
+      "save.photos": "사진에 저장", download: "다운로드",
+      "a.view": "그레인이 적용된 사진", "a.mini": "전체 사진. 눌러서 이동해요.", "a.sheet": "그레인 설정",
+      "st.notimage": "이미지 파일이 아니에요. JPEG, PNG, HEIC 사진을 열어주세요.", "st.opening": "여는 중…",
+      "st.cantopen": "이 브라우저에서 사진을 열 수 없어요. JPEG나 PNG로 시도해보세요.",
+      "st.resized": "브라우저 한계 때문에 {w} × {h} px로 줄였어요 (원본 {o}).",
+      "st.adding": "{w} × {h} px에 그레인 넣는 중…", "st.encoding": "JPEG로 저장하는 중…",
+      "st.saved": "{f} 저장했어요 ({s}초).", "st.done": "완료 ({s}초).", "st.cancelled": "저장을 취소했어요.",
+      "st.failed": "이 사진을 처리하지 못했어요. 이 기기에서 너무 클 수 있으니 더 작은 사진으로 해보세요." },
+    ja: { open: "写真を開く", compare: "押している間は元画像", save: "保存", "save.tip": "元のサイズでJPEG保存", fit: "全体", sample: "サンプル写真", original: "元画像",
+      amount: "量", iso: "感度", color: "色", frame: "フレーム", glow: "グロー", soft: "ソフト",
+      "amount.head": "グレインの量", "amount.hint": "100が実測フィルムと同じ強さです。スライダーをダブルタップで初期値に戻ります。",
+      "iso.head": "フィルム感度", "iso.sub": "感度が高いほど粒子が粗くなります",
+      "color.head": "グレインの色", "color.sub": "カラーネガまたはモノクロ", "color.color": "カラー", "color.bw": "モノクロ",
+      "frame.head": "フレームサイズ", "frame.sub": "ハーフフレームは粒子が大きくなります", "frame.full": "フル", "frame.half": "ハーフ",
+      "glow.hint": "明るい部分が暖かい光でふんわりにじみます。ダブルタップで0に戻ります。",
+      "soft.hint": "フィルムレンズとラボスキャンのやわらかさです。ダブルタップで0に戻ります。",
+      "result.hint": "画像を長押し（スマホ）または右クリック（パソコン）で保存してください。", close: "閉じる",
+      "save.photos": "写真に保存", download: "ダウンロード",
+      "a.view": "グレインを加えた写真", "a.mini": "写真全体。タップで移動します。", "a.sheet": "グレイン設定",
+      "st.notimage": "画像ファイルではありません。JPEG・PNG・HEICの写真を開いてください。", "st.opening": "開いています…",
+      "st.cantopen": "このブラウザでは写真を開けませんでした。JPEGかPNGでお試しください。",
+      "st.resized": "ブラウザの上限に合わせて {w} × {h} px に縮小しました（元 {o}）。",
+      "st.adding": "{w} × {h} px にグレインを追加中…", "st.encoding": "JPEGに書き出し中…",
+      "st.saved": "{f} を保存しました（{s}秒）。", "st.done": "完了（{s}秒）。", "st.cancelled": "保存をキャンセルしました。",
+      "st.failed": "この写真を処理できませんでした。この端末には大きすぎる可能性があります。小さい写真でお試しください。" },
+  };
+  const LANG = (() => {
+    const list = [].concat(navigator.languages || [], navigator.language || []).map((l) => String(l).toLowerCase());
+    for (const l of list) { if (l.startsWith("ko")) return "ko"; if (l.startsWith("ja")) return "ja"; if (l.startsWith("en")) return "en"; }
+    return "en";
+  })();
+  const t = (k, v) => {
+    let s = (I18N[LANG] && I18N[LANG][k]) || I18N.en[k] || k;
+    if (v) s = s.replace(/\{(\w+)\}/g, (m, x) => (v[x] != null ? String(v[x]) : m));
+    return s;
+  };
+  document.documentElement.lang = LANG;
+  document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-title]").forEach((el) => { el.title = t(el.dataset.i18nTitle); });
+  document.querySelectorAll("[data-i18n-aria]").forEach((el) => { el.setAttribute("aria-label", t(el.dataset.i18nAria)); });
+  document.querySelectorAll("[data-i18n-alt]").forEach((el) => { el.alt = t(el.dataset.i18nAlt); });
   const viewer = $("viewer"), view = $("view"), mini = $("mini"), under = $("under");
   const vctx = view.getContext("2d");
   const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -830,14 +899,14 @@ self.onmessage = (e) => {
     st.src = canvas; st.sctx = canvas.getContext("2d", { willReadFrequently: true });
     st.W = canvas.width; st.H = canvas.height; st.name = name; st.sample = sample;
     st.base = null; st.glow = null; buildMips(); setFit();
-    $("badge").textContent = sample ? "Sample photo" : `${name} · ${st.W}×${st.H}`;
-    setStatus(scaledFrom ? `Resized to ${st.W} × ${st.H} px to fit this browser's limit (original ${scaledFrom}).` : "");
+    $("badge").textContent = sample ? t("sample") : `${name} · ${st.W}×${st.H}`;
+    setStatus(scaledFrom ? t("st.resized", { w: st.W, h: st.H, o: scaledFrom }) : "");
     schedule(true);
   }
 
   async function openFile(file) {
-    if (!file || !/^image\//.test(file.type || "image/")) { setStatus("That file isn't an image. Open a JPEG, PNG or HEIC photo."); return; }
-    setStatus("Opening…", true);
+    if (!file || !/^image\//.test(file.type || "image/")) { setStatus(t("st.notimage")); return; }
+    setStatus(t("st.opening"), true);
     try {
       let bmp;
       try { bmp = await createImageBitmap(file, { imageOrientation: "from-image" }); }
@@ -855,7 +924,7 @@ self.onmessage = (e) => {
       if (bmp.close) bmp.close();
       setSource(c, file.name.replace(/\.[^.]+$/, ""), false, scaledFrom);
     } catch (e) {
-      setStatus("This browser couldn't open that photo. Try a JPEG or PNG.");
+      setStatus(t("st.cantopen"));
     }
   }
   $("file").addEventListener("change", (e) => { openFile(e.target.files[0]); e.target.value = ""; });
@@ -1094,8 +1163,8 @@ self.onmessage = (e) => {
     const o = opts(), pct = Math.round(V.s * DPR() * 100);
     $("tAmount").textContent = String(o.amount);
     $("tIso").textContent = String(o.iso);
-    $("tColor").textContent = o.bw ? "B&W" : "Color";
-    $("tFrame").textContent = o.half ? "Half" : "Full";
+    $("tColor").textContent = o.bw ? t("color.bw") : t("color.color");
+    $("tFrame").textContent = o.half ? t("frame.half") : t("frame.full");
     $("tGlow").textContent = String(o.glow);
     $("tSoft").textContent = String(o.soft);
     $("zFit").classList.toggle("on", !!V.fit);
@@ -1248,7 +1317,7 @@ self.onmessage = (e) => {
     st.busy = true; $("save").disabled = true;
     const bar = $("bar"), fill = $("barFill"); bar.hidden = false; fill.style.width = "0%";
     const o = opts(), W = st.W, H = st.H, t0 = performance.now();
-    setStatus(`Adding grain to ${W} × ${H} px…`, true);
+    setStatus(t("st.adding", { w: W, h: H }), true);
     try {
       const img = st.sctx.getImageData(0, 0, W, H);
       const w = getWorker();
@@ -1262,7 +1331,7 @@ self.onmessage = (e) => {
         const glow = o.glow > 0 && st.glow ? { ...st.glow, data: st.glow.data.slice() } : null;
         w.postMessage({ buf: img.data.buffer, W, H, opts: o, glow }, glow ? [img.data.buffer, glow.data.buffer] : [img.data.buffer]);
       });
-      setStatus("Encoding JPEG…", true);
+      setStatus(t("st.encoding"), true);
       const c = document.createElement("canvas"); c.width = W; c.height = H;
       c.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(buf), W, H), 0, 0);
       const blob = await new Promise((res) => c.toBlob(res, "image/jpeg", 0.95));
@@ -1281,23 +1350,23 @@ self.onmessage = (e) => {
         $("result").hidden = false; setStatus("");
       };
       if (downloads) {
-        try { await downloads.save({ filename, data: blob }); setStatus(`Saved ${filename} (${secs} s).`); }
+        try { await downloads.save({ filename, data: blob }); setStatus(t("st.saved", { f: filename, s: secs })); }
         catch (err) {
-          if (err && err.code === "declined") setStatus("Save cancelled.");
+          if (err && err.code === "declined") setStatus(t("st.cancelled"));
           else showFallback();
         }
       } else if (touch && canShare) {
         // phones: the share sheet has "Save Image", which puts it straight into the photo library
-        try { await navigator.share({ files: [file] }); setStatus(`Done (${secs} s).`); }
-        catch (err) { if (err && err.name === "AbortError") setStatus("Save cancelled."); else showFallback(); }
+        try { await navigator.share({ files: [file] }); setStatus(t("st.done", { s: secs })); }
+        catch (err) { if (err && err.name === "AbortError") setStatus(t("st.cancelled")); else showFallback(); }
       } else if (!touch) {
         const a = document.createElement("a"), url = URL.createObjectURL(blob);
         a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 60000);
-        setStatus(`Saved ${filename} (${secs} s).`);
+        setStatus(t("st.saved", { f: filename, s: secs }));
       } else showFallback();
     } catch (e) {
-      setStatus("Couldn't finish this photo. It may be too large for this device; try a smaller copy.");
+      setStatus(t("st.failed"));
     } finally {
       st.busy = false; $("save").disabled = false; bar.hidden = true;
     }
