@@ -1,6 +1,8 @@
 {
-  "version": "0.3.10",
-  "notes": "Fix: preview is centred correctly when the panel first opens.",
-  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.3.10.ccx",
+  "version": "0.4.0",
+  "notes": "Korean and Japanese panel text (follows Photoshop's language; change it with the button at the bottom).",
+  "notes_ko": "패널이 한국어·일본어를 지원해요 (Photoshop 언어를 따라가고, 맨 아래 버튼으로 바꿀 수 있어요).",
+  "notes_ja": "パネルが韓国語・日本語に対応しました（Photoshopの言語に合わせます。下のボタンで切り替えできます）。",
+  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.4.0.ccx",
   "page": "https://from-ttraw.github.io/ttraw-grain/"
 }
