@@ -115,7 +115,7 @@
   @media (min-width: 720px) {
     .sheet { left: 50%; right: auto; width: 560px; transform: translateX(-50%); bottom: 16px; border: 1px solid var(--line); border-radius: 14px; padding-bottom: 12px; }
   }
-  .tabs { display: grid; grid-template-columns: repeat(6, minmax(58px, 1fr)); overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--line); padding: 0 max(4px, env(safe-area-inset-left, 0px)); }
+  .tabs { display: grid; grid-template-columns: repeat(5, minmax(58px, 1fr)); overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--line); padding: 0 max(4px, env(safe-area-inset-left, 0px)); }
   .tabs::-webkit-scrollbar { display: none; }
   .tab {
     display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 10px 4px 9px; border: 0; background: none;
@@ -198,7 +198,6 @@
       <button class="tab" role="tab" type="button" data-tab="amount" aria-selected="true"><b data-i18n="amount">Amount</b><small id="tAmount">100</small></button>
       <button class="tab" role="tab" type="button" data-tab="iso" aria-selected="false"><b data-i18n="iso">ISO</b><small id="tIso">400</small></button>
       <button class="tab" role="tab" type="button" data-tab="color" aria-selected="false"><b data-i18n="color">Color</b><small id="tColor">Color</small></button>
-      <button class="tab" role="tab" type="button" data-tab="frame" aria-selected="false"><b data-i18n="frame">Frame</b><small id="tFrame">Full</small></button>
       <button class="tab" role="tab" type="button" data-tab="glow" aria-selected="false"><b data-i18n="glow">Glow</b><small id="tGlow">0</small></button>
       <button class="tab" role="tab" type="button" data-tab="soft" aria-selected="false"><b data-i18n="soft">Soft</b><small id="tSoft">0</small></button>
     </nav>
@@ -209,12 +208,12 @@
       <div class="hint" data-i18n="amount.hint">100 matches the measured film. Double-tap the slider to reset.</div>
     </div>
     <div class="pane" data-pane="iso" role="tabpanel" hidden>
-      <div class="pane-head"><span data-i18n="iso.head">Film speed</span><small data-i18n="iso.sub">Higher ISO, coarser grain</small></div>
+      <div class="pane-head"><span data-i18n="iso.head">Film speed</span><small data-i18n="iso.sub">Higher ISO, stronger grain with more colour. Half: half-frame grain</small></div>
       <div class="seg mono" role="radiogroup" aria-label="Film speed">
         <label><input type="radio" name="iso" id="iso100" value="100"><span>100</span></label>
         <label><input type="radio" name="iso" id="iso200" value="200"><span>200</span></label>
         <label><input type="radio" name="iso" id="iso400" value="400" checked><span>400</span></label>
-        <label><input type="radio" name="iso" id="iso800" value="800"><span>800</span></label>
+        <label><input type="radio" name="iso" id="isoHalf" value="half"><span data-i18n="frame.half">Half</span></label>
       </div>
     </div>
     <div class="pane" data-pane="color" role="tabpanel" hidden>
@@ -222,13 +221,6 @@
       <div class="seg" role="radiogroup" aria-label="Grain color">
         <label><input type="radio" name="color" id="colorC" value="color" checked><span data-i18n="color.color">Color</span></label>
         <label><input type="radio" name="color" id="colorBW" value="bw"><span data-i18n="color.bw">B&amp;W</span></label>
-      </div>
-    </div>
-    <div class="pane" data-pane="frame" role="tabpanel" hidden>
-      <div class="pane-head"><span data-i18n="frame.head">Frame size</span><small data-i18n="frame.sub">Half frame enlarges the grain</small></div>
-      <div class="seg" role="radiogroup" aria-label="Frame">
-        <label><input type="radio" name="frame" id="frameFull" value="full" checked><span data-i18n="frame.full">Full</span></label>
-        <label><input type="radio" name="frame" id="frameHalf" value="half"><span data-i18n="frame.half">Half</span></label>
       </div>
     </div>
     <div class="pane" data-pane="glow" role="tabpanel" hidden>
@@ -276,17 +268,29 @@ const CURVES = {
   half: [0.34, 0.51, 0.62, 0.75, 0.88, 0.96, 1.00, 0.98, 0.95, 0.93, 0.86, 0.83, 0.73, 0.64, 0.49, 0.37],
 };
 
-// Per-ISO settings. sigma = peak grain sigma (0..255) as seen at scan size (3089 px long side).
+// Only what the scans measured (2026-11-15 re-analysis, 31 rolls; reference = one trip, one lab, Noritsu EZ Controller 7.40).
+//   sigma = peak grain sigma (0..255) at scan size
+//   g, kc = colour structure per channel R, G, B: each channel's grain = g·(grain shared by all channels) + kc·(its own grain)
+//   osize = size of each channel's own grain (dye clouds) relative to the shared grain
+//           All three were fitted by simulation so the engine's output, measured exactly like the scans (Noritsu JPEG with
+//           half-resolution colour), matches them: channel strengths, channel correlations, colour share, grain and colour-blob
+//           correlation, kurtosis. Blue is the noisiest channel; colour noise runs mostly blue–yellow, more at 400 than 100/200.
+//   size  = grain size (the scans could not tell sizes apart between speeds, so all equal)
+//   clump = coarse clumped grain (not measured: off)
+// Each speed also has its own measured brightness curve (CURVES).
 const ISO = {
-  100: { sigma: 5.60, chroma: 0.30, size: 0.80 },
-  200: { sigma: 6.60, chroma: 0.35, size: 0.90 },
-  400: { sigma: 7.30, chroma: 0.45, size: 1.00 },
-  800: { sigma: 9.13, chroma: 0.50, size: 1.20 }, // estimate
+  100: { sigma: 4.44, g: [0.969, 0.978, 1.107], kc: [0.403, 0.406, 0.531], osize: 1.74, size: 1.00, clump: 0 }, // Pro Image 100
+  200: { sigma: 6.76, g: [0.995, 0.970, 1.098], kc: [0.442, 0.320, 0.673], osize: 2.09, size: 1.00, clump: 0 }, // ColorPlus 200
+  400: { sigma: 6.58, g: [0.914, 0.959, 1.293], kc: [0.644, 0.518, 1.064], osize: 1.73, size: 1.00, clump: 0 }, // UltraMax ×2, Fuji 400, Lomo 400 ×2
+  // half frame (Pen FT: Lomo 100 + Superia X-TRA 400): stronger, and the grain stays in the highlights
+  half: { sigma: 7.70, g: [0.896, 0.970, 1.227], kc: [0.746, 0.592, 0.988], osize: 1.58, size: 1.00, clump: 0 },
 };
+const CLUMP_SIZE = 3.0;
 
-const HALF = { sigma: 1.3, size: 1.33 };
 const SCAN_LONG_SIDE = 3089;      // reference scan width the measurements were taken at
-const BASE_BLUR = 0.48;           // gaussian blur (px at scan size) giving the measured ~0.8 px autocorrelation half-width
+// baseBlur: grain blur in scan px, giving the scans' measured neighbour correlation (0.46–0.49 for every speed);
+// kurt: slightly heavier tails than gaussian (scans 3.05–3.38)
+const TUNE = { baseBlur: 0.63, kurt: 0.016 };
 const CALIB = 1.10;               // per-pixel sigma correction so the result matches the scans at scan size (calibrated by test)
 const SKEW_DARK = 0.37, SKEW_SPAN = 0.80; // calibrated: measured skew about +0.2 in shadows, -0.25 in highlights
 
@@ -301,6 +305,19 @@ function buildSigmaLUT(curve, peak) {
   return lut;
 }
 
+// Large blurs (the colour clouds) as three box passes: running sums, cost independent of the radius.
+// norm makes the blurred white noise unit-sigma again, from the effective (box * box * box) kernel.
+function ownKernel(s) {
+  if (s < 1.2) return gaussKernel(s);
+  const n = 3, wIdeal = Math.sqrt((12 * s * s) / n + 1);
+  let wl = Math.floor(wIdeal); if (wl % 2 === 0) wl--;
+  const m = Math.round((12 * s * s - n * wl * wl - 4 * n * wl - 3 * n) / (-4 * wl - 4));
+  const boxes = []; for (let i = 0; i < n; i++) boxes.push(((i < m ? wl : wl + 2) - 1) >> 1);
+  let e = [1];
+  for (const r of boxes) { const o = new Array(e.length + 2 * r).fill(0); for (let i = 0; i < e.length; i++) for (let j = 0; j <= 2 * r; j++) o[i + j] += e[i] / (2 * r + 1); e = o; }
+  let sq = 0; for (const v of e) sq += v * v;
+  return { boxes, r: boxes.reduce((a, b) => a + b, 0), norm: 1 / sq };
+}
 function gaussKernel(s) {
   const r = Math.max(1, Math.ceil(3 * s));
   const k = new Float32Array(2 * r + 1);
@@ -321,24 +338,25 @@ function hash(x, y, c, seed) {
 const IH_MEAN = 510, IH_SD = Math.sqrt(4 * (256 * 256 - 1) / 12);
 
 function makeSettings(opts, width, height) {
-  const iso = ISO[opts.iso] || ISO[400];
+  const iso = opts.half ? ISO.half : (ISO[opts.iso] || ISO[400]);
   const half = !!opts.half;
   const amount = (opts.amount == null ? 100 : opts.amount) / 100;
   const scale = Math.max(width, height) / SCAN_LONG_SIDE; // image px per scan px
-  const blur = Math.max(0.3, BASE_BLUR * scale * iso.size * (half ? HALF.size : 1));
-  const peak = iso.sigma * (half ? HALF.sigma : 1) * amount * CALIB;
+  const blur = Math.max(0.3, TUNE.baseBlur * scale * iso.size);
+  const blurO = blur * (iso.osize || 1); // each channel's own (colour) grain: dye clouds are larger than the shared grain
+  const peak = iso.sigma * amount * CALIB;
   const curve = half ? CURVES.half : (CURVES[opts.iso] || CURVES[400]);
-  const k = opts.bw ? 0 : chromaK(iso.chroma);
-  return { lut: buildSigmaLUT(curve, peak), kern: gaussKernel(blur), blur, k, seed: (opts.seed | 0) || 1234567 };
+  const k = opts.bw ? 0 : 1; // colour on/off; the colour structure itself is iso.g / iso.kc
+  const clump = iso.clump || 0, clumpBlur = blur * CLUMP_SIZE;
+  return { lut: buildSigmaLUT(curve, peak), kern: gaussKernel(blur), blur, blurO, kernO: ownKernel(blurO), kurt: TUNE.kurt, k, g: iso.g, kc: iso.kc, clump, clumpBlur, kernC: clump > 0 ? gaussKernel(clumpBlur) : null, seed: (opts.seed | 0) || 1234567 };
 }
-
-// Solve channel-independent noise weight k so that (chroma deviation sigma)/(luma sigma) = r.
-// g_c = n0 + k*n_c ; chroma dev sd = k*sqrt(2/3); luma sd = sqrt(1 + k^2 * sum(w^2)), sum(w^2) for Rec.601 weights.
-const W2 = 0.299 * 0.299 + 0.587 * 0.587 + 0.114 * 0.114;
-function chromaK(r) {
-  const a = 2 / 3 - r * r * W2;
-  return a > 0 ? Math.sqrt((r * r) / a) : 0;
+// The same settings with the grain made k times smaller (zoomed-out preview: one screen pixel covers several image pixels).
+function scaled(S, k) {
+  return Object.assign({}, S, { kern: gaussKernel(Math.max(0.3, S.blur / k)), kernO: ownKernel(Math.max(0.3, S.blurO / k)),
+    kernC: S.clump > 0 ? gaussKernel(Math.max(0.3, S.clumpBlur / k)) : null });
 }
+// how far (image px) one pixel's grain reaches, for strip margins
+const kernelRadius = (S) => Math.max(S.kern.r, S.kernO ? S.kernO.r : 0, S.kernC ? S.kernC.r : 0);
 
 /*
  * Process one horizontal strip.
@@ -356,14 +374,13 @@ function processStrip(src, W, h, y0, comp, maxVal, S, x0 = 0) {
 // Blurring is linear, so the raw noise is mixed first and only 3 fields (not 4) get blurred.
 // Depends only on ISO/frame/B&W and seed, not on Amount, so the preview can cache it while the Amount slider moves.
 function noiseFields(W, h, y0, x0, S) {
-  const { k: kernel, r: R, norm } = S.kern;
+  const R = kernelRadius(S); // raw noise margin: enough for the widest blur
   const PW = W + 2 * R, PH = h + 2 * R, NP = PW * PH;
-  const lnorm = 1 / Math.sqrt(1 + S.k * S.k * W2);
-  const unit = (norm / IH_SD) * lnorm;
-  const color = S.k > 0, kk = S.k;
-  const kc = kernel[R];
-  const ks = new Float32Array(R + 1); // symmetric kernel: weight for offset 1..R
-  for (let i = 1; i <= R; i++) ks[i] = kernel[R + i];
+  const color = S.k > 0;
+  // colour: channel c = g[c]·shared + kc[c]·own; scaled so the luma grain has unit sigma
+  const WR = [0.299, 0.587, 0.114];
+  const gl = color ? WR[0] * S.g[0] + WR[1] * S.g[1] + WR[2] * S.g[2] : 1;
+  const lnorm = color ? 1 / Math.sqrt(gl * gl + WR.reduce((a, w, i) => a + w * w * S.kc[i] * S.kc[i], 0)) : 1;
   const AX = 374761393, xStart = Math.imul(x0 - R, AX);
 
   // raw noise with margins (same hash as hash(), with the x term stepped instead of multiplied)
@@ -383,14 +400,19 @@ function noiseFields(W, h, y0, x0, S) {
       }
     }
   };
+  // separable gaussian of the raw field, cropped to W x h, scaled to unit sigma × gain
   const tmp = new Float32Array(W * PH);
-  const blur = (raw) => {
+  const blur = (raw, kern, gain) => {
+    if (kern.boxes) return boxBlur(raw, kern, gain);
+    const { k: kernel, r: r, norm } = kern, kc = kernel[r], ks = new Float32Array(r + 1);
+    for (let i = 1; i <= r; i++) ks[i] = kernel[r + i];
+    const unit = (norm / IH_SD) * gain;
     for (let py = 0; py < PH; py++) {
       const ro = py * PW + R, to = py * W;
       for (let x = 0; x < W; x++) {
         const c = ro + x;
         let s = kc * raw[c];
-        for (let i = 1; i <= R; i++) s += ks[i] * (raw[c - i] + raw[c + i]);
+        for (let i = 1; i <= r; i++) s += ks[i] * (raw[c - i] + raw[c + i]);
         tmp[to + x] = s;
       }
     }
@@ -400,22 +422,63 @@ function noiseFields(W, h, y0, x0, S) {
       for (let x = 0; x < W; x++) {
         const c = co + x;
         let s = kc * tmp[c];
-        for (let i = 1; i <= R; i++) s += ks[i] * (tmp[c - i * W] + tmp[c + i * W]);
+        for (let i = 1; i <= r; i++) s += ks[i] * (tmp[c - i * W] + tmp[c + i * W]);
         out[oo + x] = s * unit;
       }
     }
     return out;
   };
 
+  // three box passes along x then y over the padded field (edges sit in the margin), then crop to W x h
+  function boxBlur(raw, kern, gain) {
+    let a = raw.slice(0, NP), t = new Float32Array(NP);
+    // horizontal: running sum along each row
+    for (const r of kern.boxes) {
+      const inv = 1 / (2 * r + 1);
+      for (let y = 0; y < PH; y++) {
+        const o = y * PW;
+        let sum = 0;
+        for (let i = -r; i <= r; i++) sum += a[o + (i < 0 ? 0 : i >= PW ? PW - 1 : i)];
+        for (let x = 0; x < PW; x++) {
+          t[o + x] = sum * inv;
+          const ad = x + r + 1, sb = x - r;
+          sum += a[o + (ad >= PW ? PW - 1 : ad)] - a[o + (sb < 0 ? 0 : sb)];
+        }
+      }
+      const sw = a; a = t; t = sw;
+    }
+    // vertical: one running sum per column, walking down row by row (cache friendly)
+    const acc = new Float32Array(PW);
+    for (const r of kern.boxes) {
+      const inv = 1 / (2 * r + 1), row = (y) => (y < 0 ? 0 : y >= PH ? PH - 1 : y) * PW;
+      acc.fill(0);
+      for (let k = -r; k <= r; k++) { const o = row(k); for (let x = 0; x < PW; x++) acc[x] += a[o + x]; }
+      for (let y = 0; y < PH; y++) {
+        const o = y * PW, ad = row(y + r + 1), sb = row(y - r);
+        for (let x = 0; x < PW; x++) { t[o + x] = acc[x] * inv; acc[x] += a[ad + x] - a[sb + x]; }
+      }
+      const sw = a; a = t; t = sw;
+    }
+    const unit = (kern.norm / IH_SD) * gain, out = new Float32Array(W * h);
+    for (let y = 0; y < h; y++) { const so = (y + R) * PW + R, oo = y * W; for (let x = 0; x < W; x++) out[oo + x] = a[so + x] * unit; }
+    return out;
+  }
+  // fine grain (+ a little dye noise per channel) and, shared by all channels, coarse clumped grain
+  const c = S.kernC ? S.clump : 0, fineW = Math.sqrt(1 - c * c);
   const raw0 = new Float32Array(NP);
   rawField(0, raw0);
-  if (!color) return [blur(raw0)];
-  const rawC = new Float32Array(NP), mix = new Float32Array(NP);
+  let coarse = null;
+  if (c > 0) { const rawK = new Float32Array(NP); rawField(7, rawK); coarse = blur(rawK, S.kernC, c); }
+  const addCoarse = (f) => { if (coarse) for (let i = 0; i < f.length; i++) f[i] += coarse[i]; return f; };
+  if (!color) return [addCoarse(blur(raw0, S.kern, fineW))];
+  const rawC = new Float32Array(NP);
+  const shared = blur(raw0, S.kern, fineW * lnorm);
   const fields = [];
-  for (let c = 1; c <= 3; c++) {
-    rawField(c, rawC);
-    for (let i = 0; i < NP; i++) mix[i] = raw0[i] + kk * rawC[i];
-    fields.push(blur(mix));
+  for (let ch = 1; ch <= 3; ch++) {
+    rawField(ch, rawC);
+    const gc = S.g[ch - 1], own = blur(rawC, S.kernO, fineW * lnorm * S.kc[ch - 1]);
+    for (let i = 0; i < own.length; i++) own[i] += gc * shared[i];
+    fields.push(addCoarse(own));
   }
   return fields;
 }
@@ -427,6 +490,7 @@ function grainCombine(src, W, h, comp, maxVal, S, fields, gain) {
   const dst = new src.constructor(src.length);
   const nr = fields[0], ng = fields[1] || nr, nb = fields[2] || nr;
   const lut = S.lut, gd = SKEW_DARK / 6, gs = SKEW_SPAN / 6 / 255;
+  const kt = S.kurt || 0, kn = 1 / Math.sqrt(1 + 6 * kt * kt); // heavier tails: the scans show kurtosis ~3.1–3.4
   const N = W * h;
   for (let i = 0, p = 0; i < N; i++, p += comp) {
     const r = src[p], g = src[p + 1], b = src[p + 2];
@@ -435,11 +499,11 @@ function grainCombine(src, W, h, comp, maxVal, S, fields, gain) {
     const sig = lut[Y | 0] * fromByte * (gain ? gain[i] : 1);
     const gam = gd - gs * Y;
     let z, v;
-    z = nr[i]; z = z + gam * (z * z - 1);
+    z = nr[i]; z = (z + kt * (z * z * z - 3 * z)) * kn; z = z + gam * (z * z - 1);
     v = r + sig * z; dst[p] = v <= 0 ? 0 : v >= maxVal ? maxVal : (v + 0.5) | 0;
-    z = ng[i]; z = z + gam * (z * z - 1);
+    z = ng[i]; z = (z + kt * (z * z * z - 3 * z)) * kn; z = z + gam * (z * z - 1);
     v = g + sig * z; dst[p + 1] = v <= 0 ? 0 : v >= maxVal ? maxVal : (v + 0.5) | 0;
-    z = nb[i]; z = z + gam * (z * z - 1);
+    z = nb[i]; z = (z + kt * (z * z * z - 3 * z)) * kn; z = z + gam * (z * z - 1);
     v = b + sig * z; dst[p + 2] = v <= 0 ? 0 : v >= maxVal ? maxVal : (v + 0.5) | 0;
     if (comp === 4) dst[p + 3] = src[p + 3];
   }
@@ -447,7 +511,7 @@ function grainCombine(src, W, h, comp, maxVal, S, fields, gain) {
 }
 
 
-return { makeSettings, noiseFields, grainCombine, gaussKernel, SCAN_LONG_SIDE };
+return { makeSettings, scaled, noiseFields, grainCombine, gaussKernel, kernelRadius, SCAN_LONG_SIDE };
 })();
 const Efx = ((G) => {
 /*! ttraw Film efx — Copyright (c) 2026 ttraw. All rights reserved.
@@ -963,7 +1027,7 @@ self.onmessage = (e) => {
     en: { open: "Open photo", compare: "Hold to see original", save: "Save", "save.tip": "Save full-size JPEG", fit: "Fit", sample: "Sample photo", original: "Original",
       amount: "Amount", iso: "ISO", color: "Color", frame: "Frame", glow: "Glow", soft: "Soft",
       "amount.head": "Grain amount", "amount.hint": "100 matches the measured film. Double-tap the slider to reset.",
-      "iso.head": "Film speed", "iso.sub": "Higher ISO, coarser grain",
+      "iso.head": "Film speed", "iso.sub": "Higher ISO, stronger grain with more colour. Half: half-frame grain",
       "color.head": "Grain color", "color.sub": "Color negative or black and white", "color.color": "Color", "color.bw": "B&W",
       "frame.head": "Frame size", "frame.sub": "Half frame enlarges the grain", "frame.full": "Full", "frame.half": "Half",
       "glow.hint": "Highlights bloom outward with a faint warm halo. Double-tap to reset.",
@@ -980,7 +1044,7 @@ self.onmessage = (e) => {
     ko: { open: "사진 열기", compare: "누르고 있으면 원본", save: "저장", "save.tip": "원본 크기 JPEG로 저장", fit: "전체", sample: "샘플 사진", original: "원본",
       amount: "양", iso: "감도", color: "색", frame: "프레임", glow: "글로우", soft: "소프트",
       "amount.head": "그레인 양", "amount.hint": "100이 실측 필름과 같은 세기예요. 슬라이더를 두 번 누르면 처음 값으로 돌아가요.",
-      "iso.head": "필름 감도", "iso.sub": "감도가 높을수록 입자가 굵어요",
+      "iso.head": "필름 감도", "iso.sub": "감도가 높을수록 그레인이 진하고 색 얼룩이 많아요. 하프는 하프 프레임 그레인",
       "color.head": "그레인 색", "color.sub": "컬러 네거티브 또는 흑백", "color.color": "컬러", "color.bw": "흑백",
       "frame.head": "프레임 크기", "frame.sub": "하프 프레임은 입자가 더 커요", "frame.full": "풀", "frame.half": "하프",
       "glow.hint": "밝은 부분이 따뜻한 빛으로 은은하게 번져요. 두 번 누르면 0으로 돌아가요.",
@@ -997,7 +1061,7 @@ self.onmessage = (e) => {
     ja: { open: "写真を開く", compare: "押している間は元画像", save: "保存", "save.tip": "元のサイズでJPEG保存", fit: "全体", sample: "サンプル写真", original: "元画像",
       amount: "量", iso: "感度", color: "色", frame: "フレーム", glow: "グロー", soft: "ソフト",
       "amount.head": "グレインの量", "amount.hint": "100が実測フィルムと同じ強さです。スライダーをダブルタップで初期値に戻ります。",
-      "iso.head": "フィルム感度", "iso.sub": "感度が高いほど粒子が粗くなります",
+      "iso.head": "フィルム感度", "iso.sub": "感度が高いほど粒子が強く、色ノイズが増えます。ハーフはハーフ判の粒子",
       "color.head": "グレインの色", "color.sub": "カラーネガまたはモノクロ", "color.color": "カラー", "color.bw": "モノクロ",
       "frame.head": "フレームサイズ", "frame.sub": "ハーフフレームは粒子が大きくなります", "frame.full": "フル", "frame.half": "ハーフ",
       "glow.hint": "明るい部分が暖かい光でふんわりにじみます。ダブルタップで0に戻ります。",
@@ -1033,14 +1097,16 @@ self.onmessage = (e) => {
   const MAX_PIXELS = isIOS ? 16000000 : 60000000; // iOS Safari refuses canvases above ~16.7 MP
   const st = { src: null, sctx: null, W: 0, H: 0, name: "sample", sample: true, base: null, before: false, busy: false, full: null };
 
+  const isoPick = () => document.querySelector('input[name="iso"]:checked').value;
   function opts() {
     return {
       amount: Number($("amount").value),
-      iso: Number(document.querySelector('input[name="iso"]:checked').value),
+      iso: isoPick() === "half" ? 400 : Number(isoPick()),
       bw: document.querySelector('input[name="color"]:checked').value === "bw",
-      half: document.querySelector('input[name="frame"]:checked').value === "half",
+      half: isoPick() === "half", // half frame sits with the ISOs (the half rolls measured alike at 100 and 400)
       glow: Number($("glow").value),
       soft: Number($("soft").value),
+      seed: st.seed,
     };
   }
 
@@ -1081,9 +1147,15 @@ self.onmessage = (e) => {
   }
 
   /* ---------- loading ---------- */
+  function photoSeed(name, w, h) {
+    let x = 2166136261; const s = name + "|" + w + "x" + h;
+    for (let i = 0; i < s.length; i++) { x ^= s.charCodeAt(i); x = Math.imul(x, 16777619); }
+    return (x >>> 1) | 1;
+  }
   function setSource(canvas, name, sample, scaledFrom, full) {
     st.src = canvas; st.sctx = canvas.getContext("2d", { willReadFrequently: true });
     st.W = canvas.width; st.H = canvas.height; st.name = name; st.sample = sample; st.full = full || null;
+    st.seed = photoSeed(name, full ? full.W : st.W, full ? full.H : st.H); // one grain pattern per photo (from its original size)
     st.base = null; st.glow = null; buildMips(); setFit();
     $("badge").textContent = sample ? t("sample") : `${name} · ${st.full ? st.full.W : st.W}×${st.full ? st.full.H : st.H}`;
     setStatus(scaledFrom ? t("st.resized", { w: st.W, h: st.H, o: scaledFrom }) : "");
@@ -1198,7 +1270,7 @@ self.onmessage = (e) => {
       a /= b * b; s1 += a; s2 += a * a;
     }
     const sdHi = Math.sqrt(Math.max(0, s2 / (m * m) - (s1 / (m * m)) ** 2));
-    const lo = Engine.noiseFields(m, m, 0, 0, { ...S, kern: Engine.gaussKernel(Math.max(0.3, S.blur / kk)) })[0];
+    const lo = Engine.noiseFields(m, m, 0, 0, Engine.scaled(S, kk))[0];
     let t1 = 0, t2 = 0; for (let i = 0; i < lo.length; i++) { t1 += lo[i]; t2 += lo[i] * lo[i]; }
     const sdLo = Math.sqrt(Math.max(1e-9, t2 / lo.length - (t1 / lo.length) ** 2));
     const f = Math.min(1, sdHi / sdLo);
@@ -1326,7 +1398,7 @@ self.onmessage = (e) => {
         let S = Engine.makeSettings({ ...o, amount: 100 }, st.W, st.H);
         if (!b.full) {
           const f = grainFactor(S, b.k, key);
-          S = { ...S, kern: Engine.gaussKernel(Math.max(0.3, S.blur / b.k)), lut: S.lut.map((v) => v * f) };
+          S = { ...Engine.scaled(S, b.k), lut: S.lut.map((v) => v * f) };
         }
         b.S = S;
         b.noise = b.full ? Engine.noiseFields(b.w, b.h, b.y, b.x, S) : Engine.noiseFields(b.w, b.h, b.gy, b.gx, S);
@@ -1352,9 +1424,8 @@ self.onmessage = (e) => {
   function updateChrome() {
     const o = opts(), pct = Math.round(V.s * DPR() * 100);
     $("tAmount").textContent = String(o.amount);
-    $("tIso").textContent = String(o.iso);
+    $("tIso").textContent = o.half ? t("frame.half") : String(o.iso);
     $("tColor").textContent = o.bw ? t("color.bw") : t("color.color");
-    $("tFrame").textContent = o.half ? t("frame.half") : t("frame.full");
     $("tGlow").textContent = String(o.glow);
     $("tSoft").textContent = String(o.soft);
     $("zFit").classList.toggle("on", !!V.fit);
@@ -1475,7 +1546,7 @@ self.onmessage = (e) => {
     const v = Math.max(0, Math.min(200, Math.round(Number(amountNum.value) || 0)));
     amountNum.value = v; amount.value = v; schedule(false);
   });
-  document.querySelectorAll('input[name="iso"], input[name="color"], input[name="frame"]').forEach((el) => el.addEventListener("change", () => schedule(false)));
+  document.querySelectorAll('input[name="iso"], input[name="color"]').forEach((el) => el.addEventListener("change", () => schedule(false)));
   for (const id of ["glow", "soft"]) {
     const r = $(id), n = $(id + "Num");
     r.addEventListener("input", () => { n.value = r.value; efxInput(); });
