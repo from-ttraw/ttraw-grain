@@ -1,6 +1,6 @@
 {
-  "version": "0.3.6",
-  "notes": "Preview zoom buttons simplified to Fit and 100% (pinch or scroll for any zoom).",
-  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.3.6.ccx",
+  "version": "0.3.7",
+  "notes": "Fix: portrait photos now fit fully in the preview.",
+  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.3.7.ccx",
   "page": "https://from-ttraw.github.io/ttraw-grain/"
 }
