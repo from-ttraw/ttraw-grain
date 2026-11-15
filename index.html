@@ -1,0 +1,1312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Film grain measured from real Noritsu scans, plus film glow and softness. Add it to your photos right in the browser; nothing is uploaded. By @from_ttraw.">
+<meta name="theme-color" content="#0e0f10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ttraw Grain">
+<meta property="og:title" content="ttraw Grain">
+<meta property="og:description" content="Film grain measured from real film scans, for your photos. By @from_ttraw.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>ttraw Grain</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  /* Layout: the photo fills the screen; a translucent top bar (open, compare, save) and a translucent bottom sheet
+     (tabs + one control at a time) float over it, like a mobile photo editor. One deliberate dark look. */
+  :root {
+    --bg: #0e0f10;
+    --glass: rgba(22, 23, 25, 0.72);
+    --glass-strong: rgba(22, 23, 25, 0.88);
+    --line: rgba(233, 230, 225, 0.14);
+    --fg: #ece9e4;
+    --muted: #a19d97;
+    --accent: #d38a55;      /* orange of a color-negative film base */
+    --accent-ink: #1b1410;
+    --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); overflow: hidden; overscroll-behavior: none; }
+  body { font-family: var(--font-body); font-size: 14px; line-height: 1.4; -webkit-tap-highlight-color: transparent; }
+
+  .app { position: fixed; inset: 0; overflow: hidden; }
+  .stage { position: absolute; inset: 0; touch-action: none; user-select: none; -webkit-user-select: none; cursor: zoom-in; }
+  .stage.zoomed { cursor: grab; }
+  .stage.dragging { cursor: grabbing; }
+  .stage.dropping { outline: 2px dashed var(--accent); outline-offset: -10px; }
+  #under { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+  #view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; transform-origin: 0 0; will-change: transform; }
+
+  /* top bar */
+  .top {
+    position: absolute; left: 0; right: 0; top: 0; z-index: 3;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 10px); padding-bottom: 18px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    background: linear-gradient(rgba(0,0,0,0.62), rgba(0,0,0,0));
+    pointer-events: none;
+  }
+  .top > * { pointer-events: auto; }
+  .brand { display: flex; flex-direction: column; min-width: 0; text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
+  .brand b { font-size: 16px; font-weight: 600; letter-spacing: 0.01em; }
+  .brand a { color: var(--fg); opacity: 0.8; font-size: 12px; text-decoration: none; }
+  .brand a:hover { color: var(--fg); }
+  .actions { display: flex; align-items: center; gap: 6px; }
+  .icon {
+    position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    height: 40px; min-width: 40px; padding: 0 10px; border-radius: 20px; border: 0;
+    background: rgba(255,255,255,0.08); color: var(--fg); font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .icon:hover { background: rgba(255,255,255,0.14); }
+  .icon svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .icon input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+  .icon.active { background: var(--fg); color: var(--bg); }
+  .icon.save { background: var(--accent); color: var(--accent-ink); font-weight: 600; padding: 0 14px; }
+  .icon.save:hover { filter: brightness(1.07); }
+  .icon:disabled { opacity: 0.55; cursor: default; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* chips under the bar */
+  .chips {
+    position: absolute; z-index: 2; left: max(16px, env(safe-area-inset-left, 0px)); top: calc(env(safe-area-inset-top, 0px) + 66px);
+    display: flex; gap: 6px; align-items: center; max-width: calc(100% - 200px);
+  }
+  .chip {
+    height: 28px; padding: 0 10px; border-radius: 14px; border: 0; background: var(--glass); color: var(--fg);
+    font-family: var(--font-mono); font-size: 12px; cursor: pointer; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  .chip.on { background: var(--fg); color: var(--bg); }
+  .label-chip { cursor: default; font-family: var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; line-height: 28px; }
+  #mini {
+    position: absolute; z-index: 2; right: max(16px, env(safe-area-inset-right, 0px)); top: calc(env(safe-area-inset-top, 0px) + 66px);
+    border: 1px solid rgba(233,230,225,0.4); border-radius: 3px; cursor: crosshair; touch-action: none;
+  }
+  .before-tag {
+    position: absolute; z-index: 2; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top, 0px) + 66px);
+    padding: 4px 10px; border-radius: 14px; background: var(--accent); color: var(--accent-ink); font-size: 12px; font-weight: 600; pointer-events: none;
+  }
+  .toast {
+    position: absolute; z-index: 4; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top, 0px) + 104px);
+    max-width: min(440px, calc(100% - 32px)); padding: 8px 14px; border-radius: 10px; background: var(--glass-strong); color: var(--fg);
+    font-size: 13px; text-align: center; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  .progress { position: absolute; z-index: 4; left: 0; right: 0; top: 0; height: 3px; background: transparent; }
+  .progress i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.12s linear; }
+
+  /* bottom sheet */
+  .sheet {
+    position: absolute; z-index: 3; left: 0; right: 0; bottom: 0;
+    background: var(--glass); backdrop-filter: blur(16px) saturate(1.1); -webkit-backdrop-filter: blur(16px) saturate(1.1);
+    border-top: 1px solid var(--line); border-radius: 16px 16px 0 0;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  }
+  @media (min-width: 720px) {
+    .sheet { left: 50%; right: auto; width: 560px; transform: translateX(-50%); bottom: 16px; border: 1px solid var(--line); border-radius: 14px; padding-bottom: 12px; }
+  }
+  .tabs { display: grid; grid-template-columns: repeat(6, minmax(58px, 1fr)); overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--line); padding: 0 max(4px, env(safe-area-inset-left, 0px)); }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 10px 4px 9px; border: 0; background: none;
+    color: var(--muted); font: inherit; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .tab b { font-size: 13px; font-weight: 500; white-space: nowrap; }
+  .tab small { font-family: var(--font-mono); font-size: 11px; opacity: 0.85; }
+  .tab[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--fg); }
+  .pane {
+    display: flex; flex-direction: column; gap: 10px; padding-top: 14px;
+    padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px));
+    min-height: 92px;
+  }
+  .pane-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .pane-head span { font-size: 15px; }
+  .pane-head small { color: var(--muted); font-size: 12px; }
+  .value { width: 64px; font: inherit; font-family: var(--font-mono); font-size: 15px; font-variant-numeric: tabular-nums; color: var(--fg);
+    background: transparent; border: 0; border-bottom: 1px solid var(--line); text-align: right; padding: 2px 0; }
+  input[type="range"] { width: 100%; accent-color: var(--fg); height: 28px; margin: 0; }
+  .hint { color: var(--muted); font-size: 12px; }
+
+  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
+  .seg label { position: relative; }
+  .seg input { position: absolute; opacity: 0; inset: 0; }
+  .seg span {
+    display: block; text-align: center; padding: 10px 4px; border-radius: 10px; cursor: pointer; font-size: 14px;
+    background: rgba(255,255,255,0.07); color: var(--muted);
+  }
+  .seg input:checked + span { background: var(--fg); color: var(--bg); font-weight: 600; }
+  .seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .seg.mono span { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+  /* save fallback */
+  .result { position: absolute; z-index: 5; inset: 0; background: rgba(0,0,0,0.82); display: flex; align-items: center; justify-content: center;
+    padding: calc(env(safe-area-inset-top, 0px) + 16px) max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 16px) max(16px, env(safe-area-inset-left, 0px)); }
+  .result-card { display: flex; flex-direction: column; gap: 10px; max-width: 720px; width: 100%; max-height: 100%; }
+  .result-card p { margin: 0; font-size: 14px; }
+  .result-card img { width: 100%; min-height: 0; object-fit: contain; border-radius: 4px; flex: 1 1 auto; }
+  .result-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  .result-actions a { text-decoration: none; }
+  @media (prefers-reduced-motion: reduce) { .progress i { transition: none; } }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="stage" id="viewer"><canvas id="under" aria-hidden="true"></canvas><canvas id="view" aria-label="Photo with grain"></canvas></div>
+
+  <header class="top">
+    <div class="brand">
+      <b>ttraw Grain</b>
+      <a href="https://www.instagram.com/from_ttraw/" target="_blank" rel="noopener">@from_ttraw</a>
+    </div>
+    <div class="actions">
+      <label class="icon" title="Open photo" aria-label="Open photo">
+        <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>
+        <input type="file" id="file" accept="image/*">
+      </label>
+      <button class="icon" id="compare" type="button" title="Hold to see original" aria-label="Hold to see original">
+        <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14"/><path d="M12 5h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-7z" fill="currentColor" stroke="none" opacity="0.35"/></svg>
+      </button>
+      <button class="icon save" id="save" type="button" title="Save full-size JPEG">
+        <svg viewBox="0 0 24 24"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>Save
+      </button>
+    </div>
+  </header>
+
+  <div class="chips">
+    <button class="chip on" id="zFit" type="button">Fit</button>
+    <button class="chip" id="z100" type="button">100%</button>
+    <span class="chip label-chip" id="badge">Sample photo</span>
+  </div>
+  <canvas id="mini" hidden aria-label="Whole photo. Tap to move around."></canvas>
+  <div class="before-tag" id="beforeTag" hidden>Original</div>
+  <div class="progress" id="bar" hidden><i id="barFill"></i></div>
+  <div class="toast" id="status" role="status" hidden></div>
+
+  <section class="sheet" id="sheet" aria-label="Grain settings">
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" type="button" data-tab="amount" aria-selected="true"><b>Amount</b><small id="tAmount">100</small></button>
+      <button class="tab" role="tab" type="button" data-tab="iso" aria-selected="false"><b>ISO</b><small id="tIso">400</small></button>
+      <button class="tab" role="tab" type="button" data-tab="color" aria-selected="false"><b>Color</b><small id="tColor">Color</small></button>
+      <button class="tab" role="tab" type="button" data-tab="frame" aria-selected="false"><b>Frame</b><small id="tFrame">Full</small></button>
+      <button class="tab" role="tab" type="button" data-tab="glow" aria-selected="false"><b>Glow</b><small id="tGlow">0</small></button>
+      <button class="tab" role="tab" type="button" data-tab="soft" aria-selected="false"><b>Soft</b><small id="tSoft">0</small></button>
+    </nav>
+
+    <div class="pane" data-pane="amount" role="tabpanel">
+      <div class="pane-head"><span>Grain amount</span><input class="value" type="number" id="amountNum" min="0" max="200" step="1" value="100" aria-label="Amount value"></div>
+      <input type="range" id="amount" min="0" max="200" step="1" value="100" aria-label="Amount">
+      <div class="hint">100 matches the measured film. Double-tap the slider to reset.</div>
+    </div>
+    <div class="pane" data-pane="iso" role="tabpanel" hidden>
+      <div class="pane-head"><span>Film speed</span><small>Higher ISO, coarser grain</small></div>
+      <div class="seg mono" role="radiogroup" aria-label="Film speed">
+        <label><input type="radio" name="iso" id="iso100" value="100"><span>100</span></label>
+        <label><input type="radio" name="iso" id="iso200" value="200"><span>200</span></label>
+        <label><input type="radio" name="iso" id="iso400" value="400" checked><span>400</span></label>
+        <label><input type="radio" name="iso" id="iso800" value="800"><span>800</span></label>
+      </div>
+    </div>
+    <div class="pane" data-pane="color" role="tabpanel" hidden>
+      <div class="pane-head"><span>Grain color</span><small>Color negative or black and white</small></div>
+      <div class="seg" role="radiogroup" aria-label="Grain color">
+        <label><input type="radio" name="color" id="colorC" value="color" checked><span>Color</span></label>
+        <label><input type="radio" name="color" id="colorBW" value="bw"><span>B&amp;W</span></label>
+      </div>
+    </div>
+    <div class="pane" data-pane="frame" role="tabpanel" hidden>
+      <div class="pane-head"><span>Frame size</span><small>Half frame enlarges the grain</small></div>
+      <div class="seg" role="radiogroup" aria-label="Frame">
+        <label><input type="radio" name="frame" id="frameFull" value="full" checked><span>Full</span></label>
+        <label><input type="radio" name="frame" id="frameHalf" value="half"><span>Half</span></label>
+      </div>
+    </div>
+    <div class="pane" data-pane="glow" role="tabpanel" hidden>
+      <div class="pane-head"><span>Glow</span><input class="value" type="number" id="glowNum" min="0" max="100" step="1" value="0" aria-label="Glow value"></div>
+      <input type="range" id="glow" min="0" max="100" step="1" value="0" aria-label="Glow">
+      <div class="hint">Highlights bloom outward with a faint warm halo. Double-tap to reset.</div>
+    </div>
+    <div class="pane" data-pane="soft" role="tabpanel" hidden>
+      <div class="pane-head"><span>Soft</span><input class="value" type="number" id="softNum" min="0" max="100" step="1" value="0" aria-label="Soft value"></div>
+      <input type="range" id="soft" min="0" max="100" step="1" value="0" aria-label="Soft">
+      <div class="hint">The gentle softness of a film lens and a lab scan. Double-tap to reset.</div>
+    </div>
+  </section>
+
+  <div class="result" id="result" hidden>
+    <div class="result-card">
+      <p>Long-press the image (phone) or right-click it (computer) to save it.</p>
+      <img id="resultImg" alt="Photo with grain, full size">
+      <div class="result-actions">
+        <button class="icon save" id="shareBtn" type="button" hidden>Save to Photos</button>
+        <a class="icon" id="dlLink" download>Download</a>
+        <button class="icon" id="closeResult" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script id="engine-src">
+const Engine = (() => {
+/*! ttraw Film efx — Copyright (c) 2026 ttraw. All rights reserved.
+ * Proprietary software. Free plugin — get it only via Instagram @from_ttraw. Copying, modifying, redistributing or selling this code or its grain data
+ * (measured from the author's own film scans) is not permitted without written permission. See LICENSE.txt. */
+/*
+ * ttraw Grain — grain engine
+ * Model fitted to 14 rolls of the user's own Noritsu film scans (see claude/film-grain-measurements.md).
+ * Pure JS, no Photoshop dependency, so it runs in UXP and in Node for testing.
+ */
+
+// Grain strength vs. luminance, normalized to each curve's peak. 16 bins, centers at 8, 24, ... 248.
+const CURVES = {
+  100: [0.38, 0.55, 0.75, 0.93, 0.93, 1.00, 0.99, 0.98, 0.96, 0.92, 0.75, 0.70, 0.57, 0.48, 0.33, 0.20],
+  200: [0.40, 0.58, 0.67, 0.90, 0.95, 0.99, 1.00, 0.94, 0.85, 0.77, 0.69, 0.63, 0.51, 0.43, 0.27, 0.15],
+  400: [0.31, 0.63, 0.81, 0.91, 1.00, 1.00, 0.93, 0.89, 0.84, 0.81, 0.72, 0.70, 0.63, 0.53, 0.36, 0.20],
+  800: [0.31, 0.63, 0.81, 0.91, 1.00, 1.00, 0.93, 0.89, 0.84, 0.81, 0.72, 0.70, 0.63, 0.53, 0.36, 0.20], // estimate: 400 shape
+  half: [0.34, 0.51, 0.62, 0.75, 0.88, 0.96, 1.00, 0.98, 0.95, 0.93, 0.86, 0.83, 0.73, 0.64, 0.49, 0.37],
+};
+
+// Per-ISO settings. sigma = peak grain sigma (0..255) as seen at scan size (3089 px long side).
+const ISO = {
+  100: { sigma: 5.60, chroma: 0.30, size: 0.80 },
+  200: { sigma: 6.60, chroma: 0.35, size: 0.90 },
+  400: { sigma: 7.30, chroma: 0.45, size: 1.00 },
+  800: { sigma: 9.13, chroma: 0.50, size: 1.20 }, // estimate
+};
+
+const HALF = { sigma: 1.3, size: 1.33 };
+const SCAN_LONG_SIDE = 3089;      // reference scan width the measurements were taken at
+const BASE_BLUR = 0.48;           // gaussian blur (px at scan size) giving the measured ~0.8 px autocorrelation half-width
+const CALIB = 1.10;               // per-pixel sigma correction so the result matches the scans at scan size (calibrated by test)
+const SKEW_DARK = 0.37, SKEW_SPAN = 0.80; // calibrated: measured skew about +0.2 in shadows, -0.25 in highlights
+
+function buildSigmaLUT(curve, peak) {
+  const lut = new Float32Array(256);
+  for (let y = 0; y < 256; y++) {
+    const p = (y - 8) / 16;
+    const i = Math.max(0, Math.min(14, Math.floor(p)));
+    const t = Math.max(0, Math.min(1, p - i));
+    lut[y] = peak * (curve[i] * (1 - t) + curve[i + 1] * t);
+  }
+  return lut;
+}
+
+function gaussKernel(s) {
+  const r = Math.max(1, Math.ceil(3 * s));
+  const k = new Float32Array(2 * r + 1);
+  let sum = 0;
+  for (let i = -r; i <= r; i++) { const v = Math.exp(-(i * i) / (2 * s * s)); k[i + r] = v; sum += v; }
+  let sq = 0;
+  for (let i = 0; i < k.length; i++) { k[i] /= sum; sq += k[i] * k[i]; }
+  return { k, r, norm: 1 / sq }; // after 2D separable blur, variance = sq^2 -> multiply by norm to get unit sigma
+}
+
+// Deterministic per-pixel hash -> approx. N(0,1) via sum of 4 bytes (Irwin-Hall). Seam-free across strips.
+function hash(x, y, c, seed) {
+  let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(c + 1, 1274126177) ^ seed;
+  h = Math.imul(h ^ (h >>> 15), 2246822519);
+  h = Math.imul(h ^ (h >>> 13), 3266489917);
+  return (h ^ (h >>> 16)) >>> 0;
+}
+const IH_MEAN = 510, IH_SD = Math.sqrt(4 * (256 * 256 - 1) / 12);
+
+function makeSettings(opts, width, height) {
+  const iso = ISO[opts.iso] || ISO[400];
+  const half = !!opts.half;
+  const amount = (opts.amount == null ? 100 : opts.amount) / 100;
+  const scale = Math.max(width, height) / SCAN_LONG_SIDE; // image px per scan px
+  const blur = Math.max(0.3, BASE_BLUR * scale * iso.size * (half ? HALF.size : 1));
+  const peak = iso.sigma * (half ? HALF.sigma : 1) * amount * CALIB;
+  const curve = half ? CURVES.half : (CURVES[opts.iso] || CURVES[400]);
+  const k = opts.bw ? 0 : chromaK(iso.chroma);
+  return { lut: buildSigmaLUT(curve, peak), kern: gaussKernel(blur), blur, k, seed: (opts.seed | 0) || 1234567 };
+}
+
+// Solve channel-independent noise weight k so that (chroma deviation sigma)/(luma sigma) = r.
+// g_c = n0 + k*n_c ; chroma dev sd = k*sqrt(2/3); luma sd = sqrt(1 + k^2 * sum(w^2)), sum(w^2) for Rec.601 weights.
+const W2 = 0.299 * 0.299 + 0.587 * 0.587 + 0.114 * 0.114;
+function chromaK(r) {
+  const a = 2 / 3 - r * r * W2;
+  return a > 0 ? Math.sqrt((r * r) / a) : 0;
+}
+
+/*
+ * Process one horizontal strip.
+ * src: Uint8Array | Uint16Array, chunky, `comp` components (3 or 4), rows [y0, y0+h) of the image, width W,
+ *      starting at image column x0 (0 for full-width strips; crop offset for previews, so the noise matches the final result).
+ * maxVal: 255 for 8-bit, 32768 for Photoshop 16-bit.
+ * Returns a new typed array of the same layout with grain added.
+ */
+function processStrip(src, W, h, y0, comp, maxVal, S, x0 = 0) {
+  return grainCombine(src, W, h, comp, maxVal, S, noiseFields(W, h, y0, x0, S));
+}
+
+// Grain noise fields for a W x h region starting at image (x0, y0), already mixed per channel:
+// color: three fields n0 + k*n_c (shared luma grain plus a little independent dye noise), B&W: one field n0.
+// Blurring is linear, so the raw noise is mixed first and only 3 fields (not 4) get blurred.
+// Depends only on ISO/frame/B&W and seed, not on Amount, so the preview can cache it while the Amount slider moves.
+function noiseFields(W, h, y0, x0, S) {
+  const { k: kernel, r: R, norm } = S.kern;
+  const PW = W + 2 * R, PH = h + 2 * R, NP = PW * PH;
+  const lnorm = 1 / Math.sqrt(1 + S.k * S.k * W2);
+  const unit = (norm / IH_SD) * lnorm;
+  const color = S.k > 0, kk = S.k;
+  const kc = kernel[R];
+  const ks = new Float32Array(R + 1); // symmetric kernel: weight for offset 1..R
+  for (let i = 1; i <= R; i++) ks[i] = kernel[R + i];
+  const AX = 374761393, xStart = Math.imul(x0 - R, AX);
+
+  // raw noise with margins (same hash as hash(), with the x term stepped instead of multiplied)
+  const rawField = (f, out) => {
+    const cPart = Math.imul(f + 1, 1274126177) ^ S.seed;
+    for (let py = 0; py < PH; py++) {
+      const rowPart = Math.imul(y0 + py - R, 668265263) ^ cPart;
+      let hx = xStart;
+      const ro = py * PW;
+      for (let px = 0; px < PW; px++) {
+        let v = hx ^ rowPart;
+        v = Math.imul(v ^ (v >>> 15), 2246822519);
+        v = Math.imul(v ^ (v >>> 13), 3266489917);
+        v = (v ^ (v >>> 16)) >>> 0;
+        out[ro + px] = (v & 255) + ((v >>> 8) & 255) + ((v >>> 16) & 255) + (v >>> 24) - IH_MEAN;
+        hx = (hx + AX) | 0;
+      }
+    }
+  };
+  const tmp = new Float32Array(W * PH);
+  const blur = (raw) => {
+    for (let py = 0; py < PH; py++) {
+      const ro = py * PW + R, to = py * W;
+      for (let x = 0; x < W; x++) {
+        const c = ro + x;
+        let s = kc * raw[c];
+        for (let i = 1; i <= R; i++) s += ks[i] * (raw[c - i] + raw[c + i]);
+        tmp[to + x] = s;
+      }
+    }
+    const out = new Float32Array(W * h);
+    for (let y = 0; y < h; y++) {
+      const co = (y + R) * W, oo = y * W;
+      for (let x = 0; x < W; x++) {
+        const c = co + x;
+        let s = kc * tmp[c];
+        for (let i = 1; i <= R; i++) s += ks[i] * (tmp[c - i * W] + tmp[c + i * W]);
+        out[oo + x] = s * unit;
+      }
+    }
+    return out;
+  };
+
+  const raw0 = new Float32Array(NP);
+  rawField(0, raw0);
+  if (!color) return [blur(raw0)];
+  const rawC = new Float32Array(NP), mix = new Float32Array(NP);
+  const fields = [];
+  for (let c = 1; c <= 3; c++) {
+    rawField(c, rawC);
+    for (let i = 0; i < NP; i++) mix[i] = raw0[i] + kk * rawC[i];
+    fields.push(blur(mix));
+  }
+  return fields;
+}
+
+// Add grain from precomputed noise fields to src (typed array, chunky, comp 3 or 4, values 0..maxVal).
+// gain (optional Float32Array, one value per pixel, 0..1) scales the grain locally — used to fill only missing grain on film scans.
+function grainCombine(src, W, h, comp, maxVal, S, fields, gain) {
+  const toByte = 255 / maxVal, fromByte = maxVal / 255;
+  const dst = new src.constructor(src.length);
+  const nr = fields[0], ng = fields[1] || nr, nb = fields[2] || nr;
+  const lut = S.lut, gd = SKEW_DARK / 6, gs = SKEW_SPAN / 6 / 255;
+  const N = W * h;
+  for (let i = 0, p = 0; i < N; i++, p += comp) {
+    const r = src[p], g = src[p + 1], b = src[p + 2];
+    let Y = (0.299 * r + 0.587 * g + 0.114 * b) * toByte;
+    Y = Y < 0 ? 0 : Y > 255 ? 255 : Y;
+    const sig = lut[Y | 0] * fromByte * (gain ? gain[i] : 1);
+    const gam = gd - gs * Y;
+    let z, v;
+    z = nr[i]; z = z + gam * (z * z - 1);
+    v = r + sig * z; dst[p] = v <= 0 ? 0 : v >= maxVal ? maxVal : (v + 0.5) | 0;
+    z = ng[i]; z = z + gam * (z * z - 1);
+    v = g + sig * z; dst[p + 1] = v <= 0 ? 0 : v >= maxVal ? maxVal : (v + 0.5) | 0;
+    z = nb[i]; z = z + gam * (z * z - 1);
+    v = b + sig * z; dst[p + 2] = v <= 0 ? 0 : v >= maxVal ? maxVal : (v + 0.5) | 0;
+    if (comp === 4) dst[p + 3] = src[p + 3];
+  }
+  return dst;
+}
+
+
+return { makeSettings, noiseFields, grainCombine, gaussKernel, SCAN_LONG_SIDE };
+})();
+const Efx = ((G) => {
+/*! ttraw Film efx — Copyright (c) 2026 ttraw. All rights reserved.
+ * Proprietary software. Free plugin — get it only via Instagram @from_ttraw. Copying, modifying, redistributing or selling this code or its grain data
+ * (measured from the author's own film scans) is not permitted without written permission. See LICENSE.txt. */
+/*
+ * ttraw Film efx — glow, softness and scan degradation, applied before the grain (as on real film).
+ * Pure JS, no Photoshop dependency.
+ *
+ * Soft    : gaussian softness, up to ~1.2 scan px (optical/scan softness of a consumer lens + minilab scan)
+ * Degrade : extra luma softness + color bleed (chroma blur) + a slight lift of the blacks
+ * Glow    : highlights bloom outward with a faint warm tint (halation-like), screen-blended
+ * Sizes scale with the image long side relative to the 3089 px scans the grain was measured on.
+ */
+
+
+const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
+const pct = (v) => clamp01((Number(v) || 0) / 100);
+
+const GLOW = { threshold: 0.55, knee: 0.95, strength: 0.65, radiusFrac: 0.010, tint: [1.0, 0.88, 0.74] };
+
+function efxSettings(opts, W, H) {
+  const scale = Math.max(W, H) / G.SCAN_LONG_SIDE;
+  const soft = pct(opts.soft), degrade = pct(opts.degrade), glow = pct(opts.glow);
+  const sSoft = soft * 1.2 * scale;
+  const sDeg = degrade * 0.8 * scale;
+  const sAll = Math.sqrt(sSoft * sSoft + sDeg * sDeg);
+  const sChroma = degrade * 3.0 * scale;
+  const kAll = sAll > 0.15 ? blurKernel(sAll) : null;
+  const kChroma = sChroma > 0.15 ? blurKernel(sChroma) : null;
+  const margin = (kAll ? kAll.r : 0) + (kChroma ? kChroma.r : 0); // the two blurs run one after the other
+  return {
+    soft, degrade, glow, kAll, kChroma, margin,
+    lift: degrade * 0.025,
+    glowStrength: glow * GLOW.strength,
+    active: !!(kAll || kChroma || degrade > 0 || glow > 0),
+    key: `${opts.soft | 0}/${opts.degrade | 0}/${opts.glow | 0}`,
+  };
+}
+
+// Blur description: a true gaussian for small sigmas, three box passes (running sums, cost independent of radius)
+// for large ones. r = how far a pixel's result reaches, used for strip margins.
+function blurKernel(sigma) {
+  const g = G.gaussKernel(sigma);
+  if (sigma < 1.5) return g;
+  const n = 3, wIdeal = Math.sqrt((12 * sigma * sigma) / n + 1);
+  let wl = Math.floor(wIdeal); if (wl % 2 === 0) wl--;
+  const wu = wl + 2;
+  const m = Math.round((12 * sigma * sigma - n * wl * wl - 4 * n * wl - 3 * n) / (-4 * wl - 4));
+  const radii = [];
+  for (let i = 0; i < n; i++) radii.push(((i < m ? wl : wu) - 1) >> 1);
+  const reach = radii.reduce((a, b) => a + b, 0);
+  return { k: g.k, r: Math.max(g.r, reach), norm: g.norm, boxes: radii };
+}
+
+function boxH(p, w, h, r, buf) {
+  const inv = 1 / (2 * r + 1), L = w + 2 * r;
+  for (let y = 0; y < h; y++) {
+    const o = y * w;
+    for (let x = 0; x < L; x++) { const sx = x - r; buf[x] = p[o + (sx < 0 ? 0 : sx >= w ? w - 1 : sx)]; }
+    let s = 0;
+    for (let i = 0; i <= 2 * r; i++) s += buf[i];
+    for (let x = 0; x < w; x++) {
+      p[o + x] = s * inv;
+      if (x + 1 < w) s += buf[x + 2 * r + 1] - buf[x];
+    }
+  }
+}
+
+function boxV(p, w, h, r, src, acc) {
+  const inv = 1 / (2 * r + 1), n = w * h;
+  src.set(p.subarray(0, n));
+  const row = (y) => (y < 0 ? 0 : y >= h ? h - 1 : y) * w;
+  acc.fill(0);
+  for (let k = -r; k <= r; k++) { const o = row(k); for (let x = 0; x < w; x++) acc[x] += src[o + x]; }
+  for (let y = 0; y < h; y++) {
+    const o = y * w, add = row(y + r + 1), sub = row(y - r);
+    for (let x = 0; x < w; x++) { p[o + x] = acc[x] * inv; acc[x] += src[add + x] - src[sub + x]; }
+  }
+}
+
+// Blur a single-channel float plane (w x h) in place, edges clamped.
+function blurPlane(p, w, h, kern) {
+  if (kern.boxes) {
+    const buf = new Float32Array(w + 2 * Math.max(...kern.boxes) + 1);
+    for (const r of kern.boxes) boxH(p, w, h, r, buf);
+    const src = new Float32Array(w * h), acc = new Float64Array(w);
+    for (const r of kern.boxes) boxV(p, w, h, r, src, acc);
+    return;
+  }
+  const { k, r } = kern;
+  const kc = k[r], ks = new Float32Array(r + 1);
+  for (let i = 1; i <= r; i++) ks[i] = k[r + i];
+  const row = new Float32Array(w + 2 * r);
+  for (let y = 0; y < h; y++) {
+    const o = y * w;
+    for (let x = 0; x < w + 2 * r; x++) { const sx = x - r; row[x] = p[o + (sx < 0 ? 0 : sx >= w ? w - 1 : sx)]; }
+    for (let x = 0; x < w; x++) {
+      const c = x + r;
+      let s = kc * row[c];
+      for (let i = 1; i <= r; i++) s += ks[i] * (row[c - i] + row[c + i]);
+      p[o + x] = s;
+    }
+  }
+  // vertical pass row by row (cache friendly), edge rows clamped
+  const src = p.slice(0, w * h);
+  const rowOff = new Int32Array(h + 2 * r);
+  for (let y = 0; y < h + 2 * r; y++) { const sy = y - r; rowOff[y] = (sy < 0 ? 0 : sy >= h ? h - 1 : sy) * w; }
+  for (let y = 0; y < h; y++) {
+    const o = y * w, cy = y + r, co = rowOff[cy];
+    for (let x = 0; x < w; x++) {
+      let s = kc * src[co + x];
+      for (let i = 1; i <= r; i++) s += ks[i] * (src[rowOff[cy - i] + x] + src[rowOff[cy + i] + x]);
+      p[o + x] = s;
+    }
+  }
+}
+
+/*
+ * Glow map from a low-resolution copy of the whole image (lw x lh, chunky, comp, 0..maxVal).
+ * Independent of the Glow slider, so it is built once per image and reused.
+ */
+function buildGlowMap(low, lw, lh, comp, maxVal, W, H) {
+  const n = lw * lh;
+  const planes = [new Float32Array(n), new Float32Array(n), new Float32Array(n)];
+  const inv = 1 / maxVal;
+  for (let i = 0, p = 0; i < n; i++, p += comp) {
+    const r = low[p] * inv, g = low[p + 1] * inv, b = low[p + 2] * inv;
+    const Y = 0.299 * r + 0.587 * g + 0.114 * b;
+    let t = clamp01((Y - GLOW.threshold) / (GLOW.knee - GLOW.threshold));
+    t = t * t * (3 - 2 * t);
+    planes[0][i] = r * t; planes[1][i] = g * t; planes[2][i] = b * t;
+  }
+  const sigma = Math.max(1, GLOW.radiusFrac * Math.max(lw, lh));
+  const kSmall = blurKernel(sigma), kWide = blurKernel(sigma * 3);
+  const out = new Float32Array(n * 3);
+  for (let c = 0; c < 3; c++) {
+    const a = planes[c], b = a.slice();
+    blurPlane(a, lw, lh, kSmall);
+    blurPlane(b, lw, lh, kWide);
+    const t = GLOW.tint[c];
+    for (let i = 0; i < n; i++) out[i * 3 + c] = (0.6 * a[i] + 0.4 * b[i]) * t;
+  }
+  return { data: out, lw, lh, sx: lw / W, sy: lh / H };
+}
+
+function sampleGlow(gm, x, y, outRGB) {
+  let fx = (x + 0.5) * gm.sx - 0.5, fy = (y + 0.5) * gm.sy - 0.5;
+  if (fx < 0) fx = 0; if (fy < 0) fy = 0;
+  if (fx > gm.lw - 1) fx = gm.lw - 1; if (fy > gm.lh - 1) fy = gm.lh - 1;
+  const x0 = fx | 0, y0 = fy | 0, x1 = Math.min(gm.lw - 1, x0 + 1), y1 = Math.min(gm.lh - 1, y0 + 1);
+  const tx = fx - x0, ty = fy - y0, d = gm.data, w = gm.lw;
+  for (let c = 0; c < 3; c++) {
+    const a = d[(y0 * w + x0) * 3 + c], b = d[(y0 * w + x1) * 3 + c];
+    const e = d[(y1 * w + x0) * 3 + c], f = d[(y1 * w + x1) * 3 + c];
+    outRGB[c] = (a + (b - a) * tx) * (1 - ty) + (e + (f - e) * tx) * ty;
+  }
+}
+
+/*
+ * Apply the film effects to a region.
+ * src: typed array, chunky, comp; region size rw x rh, which includes margins around the inner area
+ * inner: { x, y, w, h } inside the region; imgX/imgY: image coordinates of the inner area's top-left.
+ * Returns a typed array (same type as src) of the inner area, comp components, before grain.
+ */
+function applyEfx(src, rw, rh, comp, maxVal, inner, imgX, imgY, E, glowMap) {
+  const { x: ix, y: iy, w: iw, h: ih } = inner;
+  const out = new src.constructor(iw * ih * comp);
+  if (!E.active) {
+    for (let y = 0; y < ih; y++) out.set(src.subarray(((iy + y) * rw + ix) * comp, ((iy + y) * rw + ix + iw) * comp), y * iw * comp);
+    return out;
+  }
+  const n = rw * rh, inv = 1 / maxVal;
+  const R = new Float32Array(n), Gp = new Float32Array(n), B = new Float32Array(n);
+  for (let i = 0, p = 0; i < n; i++, p += comp) { R[i] = src[p] * inv; Gp[i] = src[p + 1] * inv; B[i] = src[p + 2] * inv; }
+
+  if (E.kAll) { blurPlane(R, rw, rh, E.kAll); blurPlane(Gp, rw, rh, E.kAll); blurPlane(B, rw, rh, E.kAll); }
+  if (E.kChroma) {
+    const cb = new Float32Array(n), cr = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const Y = 0.299 * R[i] + 0.587 * Gp[i] + 0.114 * B[i]; cb[i] = B[i] - Y; cr[i] = R[i] - Y; }
+    blurPlane(cb, rw, rh, E.kChroma); blurPlane(cr, rw, rh, E.kChroma);
+    for (let i = 0; i < n; i++) {
+      const Y = 0.299 * R[i] + 0.587 * Gp[i] + 0.114 * B[i];
+      const r = Y + cr[i], b = Y + cb[i];
+      R[i] = r; B[i] = b; Gp[i] = (Y - 0.299 * r - 0.114 * b) / 0.587;
+    }
+  }
+
+  const lift = E.lift, gs = E.glowStrength, useGlow = gs > 0 && glowMap;
+  const g3 = [0, 0, 0];
+  for (let y = 0; y < ih; y++) {
+    for (let x = 0; x < iw; x++) {
+      const ri = (iy + y) * rw + (ix + x);
+      let r = R[ri], g = Gp[ri], b = B[ri];
+      if (lift) { r = lift + r * (1 - lift); g = lift + g * (1 - lift); b = lift + b * (1 - lift); }
+      if (useGlow) {
+        sampleGlow(glowMap, imgX + x, imgY + y, g3);
+        r = 1 - (1 - r) * (1 - clamp01(g3[0] * gs));
+        g = 1 - (1 - g) * (1 - clamp01(g3[1] * gs));
+        b = 1 - (1 - b) * (1 - clamp01(g3[2] * gs));
+      }
+      const o = (y * iw + x) * comp;
+      out[o] = Math.round(clamp01(r) * maxVal);
+      out[o + 1] = Math.round(clamp01(g) * maxVal);
+      out[o + 2] = Math.round(clamp01(b) * maxVal);
+      if (comp === 4) out[o + 3] = src[ri * comp + 3];
+    }
+  }
+  return out;
+}
+
+/*
+ * Film-scan blending: measure the grain already in the photo, so new grain only fills what is missing
+ * (areas smoothed by Liquify, healing, retouching). Same high-pass method used to measure the scans.
+ * Returns local grain sigma (0..255 scale) for every pixel of the region.
+ */
+function matchKernels(W, H) {
+  const s = Math.max(1, Math.max(W, H) / G.SCAN_LONG_SIDE);
+  const lp = blurKernel(3 * s), win = blurKernel(8 * s);
+  return { lp, win, margin: lp.r + win.r };
+}
+
+function existingSigma(src, rw, rh, comp, maxVal, K) {
+  const n = rw * rh, f = 255 / maxVal;
+  const Y = new Float32Array(n);
+  for (let i = 0, p = 0; i < n; i++, p += comp) Y[i] = (0.299 * src[p] + 0.587 * src[p + 1] + 0.114 * src[p + 2]) * f;
+  const low = Y.slice();
+  blurPlane(low, rw, rh, K.lp);
+  for (let i = 0; i < n; i++) { const d = Y[i] - low[i]; Y[i] = d * d; }
+  blurPlane(Y, rw, rh, K.win);
+  for (let i = 0; i < n; i++) Y[i] = Math.sqrt(Y[i]);
+  return Y;
+}
+
+/*
+ * Estimate the photo's own grain level vs. luminance from sample tiles (full resolution).
+ * For each 16-level luminance bin: median local grain over flat pixels. Returns a 256-entry LUT, or null if the
+ * photo has almost no grain (a digital photo) — then the normal model is used.
+ */
+function estimateTargetLUT(tiles, K) {
+  const bins = Array.from({ length: 16 }, () => []);
+  for (const t of tiles) {
+    const { data, w, h, comp, maxVal } = t;
+    const se = existingSigma(data, w, h, comp, maxVal, K);
+    const n = w * h, f = 255 / maxVal;
+    const Y = new Float32Array(n);
+    for (let i = 0, p = 0; i < n; i++, p += comp) Y[i] = (0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2]) * f;
+    const low = Y.slice(); blurPlane(low, w, h, K.win);
+    const m = K.margin;
+    for (let y = m; y < h - m; y += 2) for (let x = m; x < w - m; x += 2) {
+      const i = y * w + x;
+      const gx = low[i + 1] - low[i - 1], gy = low[i + w] - low[i - w];
+      if (gx * gx + gy * gy > 1.0) continue;               // skip edges and gradients
+      const b = Math.min(15, (low[i] / 16) | 0);
+      if (low[i] < 2 || low[i] > 253) continue;           // skip clipped
+      bins[b].push(se[i]);
+    }
+  }
+  const med = bins.map((v) => { if (v.length < 200) return null; v.sort((a, b) => a - b); return v[v.length >> 1]; });
+  const known = med.map((v, i) => (v == null ? null : i)).filter((i) => i != null);
+  if (known.length < 3) return null;
+  const mid = med.filter((v) => v != null).sort((a, b) => a - b);
+  if (mid[mid.length >> 1] < 1.2) return null;            // essentially grain-free: digital photo
+  for (let i = 0; i < 16; i++) if (med[i] == null) {
+    const near = known.reduce((a, k) => (Math.abs(k - i) < Math.abs(a - i) ? k : a), known[0]);
+    med[i] = med[near];
+  }
+  const lut = new Float32Array(256);
+  for (let y = 0; y < 256; y++) {
+    const p = (y - 8) / 16, i = Math.max(0, Math.min(14, Math.floor(p))), t = Math.max(0, Math.min(1, p - i));
+    lut[y] = med[i] * (1 - t) + med[i + 1] * t;
+  }
+  return lut;
+}
+
+// Grain to add so the total matches the photo's own grain: sqrt(target^2 - existing^2), as a gain on the model's sigma.
+// amount scales the target (1 = match the scan exactly).
+function matchGain(sigmaE, rw, inner, pre, comp, maxVal, S, targetLUT, amount) {
+  const { x: ix, y: iy, w: iw, h: ih } = inner;
+  const gain = new Float32Array(iw * ih), f = 255 / maxVal;
+  for (let y = 0; y < ih; y++) {
+    for (let x = 0; x < iw; x++) {
+      const i = y * iw + x, p = i * comp;
+      let Yv = (0.299 * pre[p] + 0.587 * pre[p + 1] + 0.114 * pre[p + 2]) * f;
+      Yv = Yv < 0 ? 0 : Yv > 255 ? 255 : Yv;
+      const model = S.lut[Yv | 0];
+      const target = (targetLUT ? targetLUT[Yv | 0] : model) * (targetLUT ? amount : 1);
+      const e = sigmaE[(iy + y) * rw + ix + x];
+      const add = target > e ? Math.sqrt(target * target - e * e) : 0;
+      gain[i] = model > 0 ? Math.min(3, add / model) : 0;
+    }
+  }
+  return gain;
+}
+
+
+return { efxSettings, buildGlowMap, applyEfx, blurKernel };
+})(Engine);
+</script>
+
+<script id="worker-src" type="text/plain">
+self.onmessage = (e) => {
+  const { buf, W, H, opts, glow } = e.data;
+  const data = new Uint8ClampedArray(buf);
+  const S = Engine.makeSettings(opts, W, H);
+  const E = Efx.efxSettings(opts, W, H), M = E.active ? E.margin : 0;
+  const out = E.active ? new Uint8ClampedArray(W * H * 4) : data; // effects read neighbours, so they can't work in place
+  const STRIP = 256;
+  for (let y = 0; y < H; y += STRIP) {
+    const h = Math.min(STRIP, H - y);
+    let pre;
+    if (E.active) {
+      const top = Math.max(0, y - M), bot = Math.min(H, y + h + M);
+      pre = Efx.applyEfx(data.subarray(top * W * 4, bot * W * 4), W, bot - top, 4, 255, { x: 0, y: y - top, w: W, h }, 0, y, E, glow);
+    } else pre = data.subarray(y * W * 4, (y + h) * W * 4);
+    const noise = Engine.noiseFields(W, h, y, 0, S);
+    out.set(Engine.grainCombine(pre, W, h, 4, 255, S, noise), y * W * 4);
+    self.postMessage({ progress: (y + h) / H });
+  }
+  self.postMessage({ done: true, buf: out.buffer }, [out.buffer]);
+};
+</script>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const viewer = $("viewer"), view = $("view"), mini = $("mini"), under = $("under");
+  const vctx = view.getContext("2d");
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const MAX_PIXELS = isIOS ? 16000000 : 60000000; // iOS Safari refuses canvases above ~16.7 MP
+  const st = { src: null, sctx: null, W: 0, H: 0, name: "sample", sample: true, base: null, before: false, busy: false };
+
+  function opts() {
+    return {
+      amount: Number($("amount").value),
+      iso: Number(document.querySelector('input[name="iso"]:checked').value),
+      bw: document.querySelector('input[name="color"]:checked').value === "bw",
+      half: document.querySelector('input[name="frame"]:checked').value === "half",
+      glow: Number($("glow").value),
+      soft: Number($("soft").value),
+    };
+  }
+
+  /* ---------- status ---------- */
+  let toastT = 0;
+  function setStatus(t, sticky) {
+    const el = $("status"); clearTimeout(toastT);
+    if (!t) { el.hidden = true; return; }
+    el.textContent = t; el.hidden = false;
+    if (!sticky) toastT = setTimeout(() => { el.hidden = true; }, 3800);
+  }
+
+  /* ---------- sample photo (drawn here, so the page works before anything is opened) ---------- */
+  function drawSample() {
+    const W = 3600, H = 2400, c = document.createElement("canvas");
+    c.width = W; c.height = H;
+    const g = c.getContext("2d");
+    const sky = g.createLinearGradient(0, 0, 0, H * 0.62);
+    sky.addColorStop(0, "#6f8fa8"); sky.addColorStop(0.55, "#c9c3b4"); sky.addColorStop(1, "#f2dcb8");
+    g.fillStyle = sky; g.fillRect(0, 0, W, H);
+    const sun = g.createRadialGradient(W * 0.68, H * 0.5, 0, W * 0.68, H * 0.5, H * 0.42);
+    sun.addColorStop(0, "#ffffff"); sun.addColorStop(0.08, "#fff8ea"); sun.addColorStop(0.35, "rgba(255,226,180,0.55)"); sun.addColorStop(1, "rgba(255,226,180,0)");
+    g.fillStyle = sun; g.fillRect(0, 0, W, H);
+    const hill = (y0, amp, col, seed) => {
+      g.beginPath(); g.moveTo(0, H);
+      for (let x = 0; x <= W; x += 40) g.lineTo(x, y0 + Math.sin(x / (420 + seed * 60) + seed) * amp + Math.sin(x / 170 + seed * 2) * amp * 0.25);
+      g.lineTo(W, H); g.closePath(); g.fillStyle = col; g.fill();
+    };
+    hill(H * 0.6, 50, "#8d8a83", 1); hill(H * 0.68, 70, "#5d5c58", 2.3); hill(H * 0.8, 90, "#2b2b2a", 4.1);
+    const ground = g.createLinearGradient(0, H * 0.85, 0, H);
+    ground.addColorStop(0, "rgba(10,10,10,0)"); ground.addColorStop(1, "rgba(10,10,10,0.9)");
+    g.fillStyle = ground; g.fillRect(0, H * 0.8, W, H * 0.2);
+    g.fillStyle = "#b9a58a"; g.fillRect(W * 0.18, H * 0.52, W * 0.16, H * 0.14);
+    g.fillStyle = "#3d3a36"; g.fillRect(W * 0.255, H * 0.66, W * 0.012, H * 0.2);
+    g.fillStyle = "#2f2b27"; g.font = `600 ${H * 0.05}px "IBM Plex Sans", sans-serif`; g.textAlign = "center";
+    g.fillText("400", W * 0.26, H * 0.61);
+    return c;
+  }
+
+  /* ---------- loading ---------- */
+  function setSource(canvas, name, sample, scaledFrom) {
+    st.src = canvas; st.sctx = canvas.getContext("2d", { willReadFrequently: true });
+    st.W = canvas.width; st.H = canvas.height; st.name = name; st.sample = sample;
+    st.base = null; st.glow = null; buildMips(); setFit();
+    $("badge").textContent = sample ? "Sample photo" : `${name} · ${st.W}×${st.H}`;
+    setStatus(scaledFrom ? `Resized to ${st.W} × ${st.H} px to fit this browser's limit (original ${scaledFrom}).` : "");
+    schedule(true);
+  }
+
+  async function openFile(file) {
+    if (!file || !/^image\//.test(file.type || "image/")) { setStatus("That file isn't an image. Open a JPEG, PNG or HEIC photo."); return; }
+    setStatus("Opening…", true);
+    try {
+      let bmp;
+      try { bmp = await createImageBitmap(file, { imageOrientation: "from-image" }); }
+      catch (e) {
+        bmp = await new Promise((res, rej) => {
+          const url = URL.createObjectURL(file), im = new Image();
+          im.onload = () => res(im); im.onerror = () => rej(new Error("decode")); im.src = url;
+        });
+      }
+      let w = bmp.width || bmp.naturalWidth, h = bmp.height || bmp.naturalHeight, scaledFrom = null;
+      if (w * h > MAX_PIXELS) { const s = Math.sqrt(MAX_PIXELS / (w * h)); scaledFrom = `${w} × ${h}`; w = Math.floor(w * s); h = Math.floor(h * s); }
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      const g = c.getContext("2d", { willReadFrequently: true });
+      g.imageSmoothingQuality = "high"; g.drawImage(bmp, 0, 0, w, h);
+      if (bmp.close) bmp.close();
+      setSource(c, file.name.replace(/\.[^.]+$/, ""), false, scaledFrom);
+    } catch (e) {
+      setStatus("This browser couldn't open that photo. Try a JPEG or PNG.");
+    }
+  }
+  $("file").addEventListener("change", (e) => { openFile(e.target.files[0]); e.target.value = ""; });
+  viewer.addEventListener("dragover", (e) => { e.preventDefault(); viewer.classList.add("dropping"); });
+  viewer.addEventListener("dragleave", () => viewer.classList.remove("dropping"));
+  viewer.addEventListener("drop", (e) => { e.preventDefault(); viewer.classList.remove("dropping"); if (e.dataTransfer.files[0]) openFile(e.dataTransfer.files[0]); });
+  document.addEventListener("paste", (e) => { const f = [...(e.clipboardData?.files || [])].find((x) => /^image\//.test(x.type)); if (f) openFile(f); });
+
+  /* ---------- view: whole photo, live grain, zoom and pan ---------- */
+  const DPR = () => Math.min(window.devicePixelRatio || 1, 3);
+  const RENDER_MAX = navigator.maxTouchPoints > 0 ? 1500000 : 2400000; // pixels computed per frame
+  const V = { s: 1, ox: 0, oy: 0, fit: true };
+  let drawn = null, mips = [];
+
+  // the free area between the top bar and the sheet: the photo fits here, and may pan under the bars when zoomed
+  function area() {
+    const vh = viewer.clientHeight, vw = viewer.clientWidth;
+    const top = Math.min(vh * 0.4, $("viewer").getBoundingClientRect().top + document.querySelector(".top").offsetHeight - 6);
+    const sheetTop = $("sheet").getBoundingClientRect().top - viewer.getBoundingClientRect().top;
+    const bottom = Math.max(top + 120, Math.min(vh, sheetTop - 8));
+    return { vw, vh, top, bottom };
+  }
+  function buildMips() {
+    mips = [st.src];
+    let c = st.src;
+    while (Math.max(c.width, c.height) > 600) {
+      const n = document.createElement("canvas");
+      n.width = Math.max(1, c.width >> 1); n.height = Math.max(1, c.height >> 1);
+      const g = n.getContext("2d"); g.imageSmoothingQuality = "high"; g.drawImage(c, 0, 0, n.width, n.height);
+      mips.push(n); c = n;
+    }
+    // a lighter copy of the photo kept under the grain layer, so zooming and panning never show empty space
+    let pick = mips[0];
+    for (const m of mips) if (Math.max(m.width, m.height) >= Math.min(2400, Math.max(st.W, st.H))) pick = m;
+    under.width = pick.width; under.height = pick.height;
+    under.style.width = pick.width + "px"; under.style.height = pick.height + "px";
+    under.getContext("2d").drawImage(pick, 0, 0);
+  }
+  // glow map: built once per photo from a ~1024 px copy (the glow is wide and soft, full resolution adds nothing)
+  function ensureGlow() {
+    if (st.glow) return st.glow;
+    let pick = mips[mips.length - 1];
+    for (const m of mips) if (Math.max(m.width, m.height) >= 1024) pick = m;
+    const sc = Math.min(1, 1024 / Math.max(pick.width, pick.height));
+    const lw = Math.max(16, Math.round(pick.width * sc)), lh = Math.max(16, Math.round(pick.height * sc));
+    const c = document.createElement("canvas"); c.width = lw; c.height = lh;
+    const g = c.getContext("2d", { willReadFrequently: true }); g.imageSmoothingQuality = "high"; g.drawImage(pick, 0, 0, lw, lh);
+    st.glow = Efx.buildGlowMap(g.getImageData(0, 0, lw, lh).data, lw, lh, 4, 255, st.W, st.H);
+    return st.glow;
+  }
+  function updateUnder() {
+    if (!under.width) return;
+    under.style.transform = `translate(${V.ox}px, ${V.oy}px) scale(${(V.s * st.W) / under.width})`;
+  }
+  const fitScale = () => { const a = area(); return Math.min((a.vw - 8) / st.W, (a.bottom - a.top) / st.H); };
+  function clampPan() {
+    const a = area(), w = st.W * V.s, h = st.H * V.s, ah = a.bottom - a.top;
+    V.ox = w <= a.vw ? (a.vw - w) / 2 : Math.min(0, Math.max(a.vw - w, V.ox));
+    V.oy = h <= ah ? a.top + (ah - h) / 2 : Math.min(a.top, Math.max(a.bottom - h, V.oy));
+  }
+  function setFit() { V.s = fitScale(); V.fit = true; clampPan(); }
+  function zoomAt(s, px, py) {
+    const smin = fitScale(), smax = 4 / DPR();
+    s = Math.max(smin, Math.min(smax, s));
+    const ix = (px - V.ox) / V.s, iy = (py - V.oy) / V.s;
+    V.s = s; V.ox = px - ix * s; V.oy = py - iy * s; V.fit = s <= smin * 1.001; clampPan();
+  }
+  const center = () => { const a = area(); return [a.vw / 2, (a.top + a.bottom) / 2]; };
+
+  // how much grain survives when the photo is shown smaller than its pixels (averaging), measured once per setting
+  const factorCache = new Map();
+  function grainFactor(S, k, key) {
+    const kk = Math.round(k * 8) / 8, id = key + "@" + kk;
+    if (factorCache.has(id)) return factorCache.get(id);
+    const b = Math.max(1, Math.round(kk)), m = 48, n = m * b;
+    const hi = Engine.noiseFields(n, n, 0, 0, S)[0];
+    let s1 = 0, s2 = 0;
+    for (let y = 0; y < m; y++) for (let x = 0; x < m; x++) {
+      let a = 0;
+      for (let j = 0; j < b; j++) { const o = (y * b + j) * n + x * b; for (let i = 0; i < b; i++) a += hi[o + i]; }
+      a /= b * b; s1 += a; s2 += a * a;
+    }
+    const sdHi = Math.sqrt(Math.max(0, s2 / (m * m) - (s1 / (m * m)) ** 2));
+    const lo = Engine.noiseFields(m, m, 0, 0, { ...S, kern: Engine.gaussKernel(Math.max(0.3, S.blur / kk)) })[0];
+    let t1 = 0, t2 = 0; for (let i = 0; i < lo.length; i++) { t1 += lo[i]; t2 += lo[i] * lo[i]; }
+    const sdLo = Math.sqrt(Math.max(1e-9, t2 / lo.length - (t1 / lo.length) ** 2));
+    const f = Math.min(1, sdHi / sdLo);
+    factorCache.set(id, f);
+    return f;
+  }
+
+  let raf = 0, needBase = true, settleT = 0;
+  const tmp = document.createElement("canvas"), tctx = tmp.getContext("2d", { willReadFrequently: true });
+  function schedule(rebase) { if (rebase) needBase = true; if (!raf) raf = requestAnimationFrame(render); }
+  function interim() {           // while zooming or panning: move the last frame with CSS, render properly when the gesture rests
+    if (drawn) {
+      const a = V.s / drawn.s;
+      view.style.transform = `translate(${V.ox - drawn.ox * a}px, ${V.oy - drawn.oy * a}px) scale(${a})`;
+      view.style.opacity = a < 0.98 ? "0" : ""; // zooming out: the old grain patch would show a seam, so show the plain photo until the new frame
+    }
+    updateUnder();
+    updateChrome();
+    clearTimeout(settleT);
+    if (pts.size === 0) settleT = setTimeout(() => schedule(true), 140); // fingers still down: wait, so rendering never blocks the gesture
+  }
+
+  // while Glow or Soft is being dragged, work on a quarter of the pixels; full detail returns when the slider rests
+  let draft = false, draftT = 0;
+  function efxInput() {
+    if (!draft) { draft = true; needBase = true; }
+    clearTimeout(draftT);
+    draftT = setTimeout(() => { draft = false; schedule(true); }, 220);
+    schedule(false);
+  }
+  const SOFT_MARGIN = () => Efx.efxSettings({ soft: 100 }, st.W, st.H).margin;
+  // film effects for the current view: at real pixels the same settings as the saved file;
+  // zoomed out, Soft is scaled to the smaller display pixels and the glow map is sampled on the display grid
+  function efxFor(b, o) {
+    const E = Efx.efxSettings({ soft: o.soft, glow: o.glow }, st.W, st.H);
+    if (!E.active) return { E, gm: null };
+    const gm = o.glow > 0 ? ensureGlow() : null;
+    if (b.full) return { E, gm };
+    const sSoft = (o.soft / 100) * 1.2 * (Math.max(st.W, st.H) / Engine.SCAN_LONG_SIDE) / b.k;
+    const kAll = sSoft > 0.15 ? Engine.gaussKernel(sSoft) : null;
+    return { E: { ...E, kAll, kChroma: null, lift: 0, active: !!(kAll || o.glow > 0) }, gm: gm && { ...gm, sx: gm.sx * b.k, sy: gm.sy * b.k } };
+  }
+
+  function computeBase() {
+    const Vw = viewer.clientWidth, Vh = viewer.clientHeight;
+    const R = Math.min(DPR(), Math.sqrt((draft ? RENDER_MAX / 4 : RENDER_MAX) / Math.max(1, Vw * Vh)));
+    const bw = Math.round(Vw * R), bh = Math.round(Vh * R);
+    if (view.width !== bw || view.height !== bh) { view.width = bw; view.height = bh; }
+    const ppx = V.s * R, k = 1 / ppx;
+    const dx0 = Math.max(0, V.ox * R), dy0 = Math.max(0, V.oy * R);
+    const dx1 = Math.min(bw, (V.ox + st.W * V.s) * R), dy1 = Math.min(bh, (V.oy + st.H * V.s) * R);
+    const sx0 = (dx0 / R - V.ox) / V.s, sy0 = (dy0 / R - V.oy) / V.s, sx1 = (dx1 / R - V.ox) / V.s, sy1 = (dy1 / R - V.oy) / V.s;
+    const b = { k, ppx, R };
+    if (k <= 1) {                                         // zoomed in: real pixels, exactly what the file gets
+      b.full = true;
+      b.x = Math.max(0, Math.floor(sx0)); b.y = Math.max(0, Math.floor(sy0));
+      b.w = Math.max(1, Math.min(st.W, Math.ceil(sx1)) - b.x); b.h = Math.max(1, Math.min(st.H, Math.ceil(sy1)) - b.y);
+      const M = SOFT_MARGIN();
+      const rx = Math.max(0, b.x - M), ry = Math.max(0, b.y - M);
+      const rw = Math.min(st.W, b.x + b.w + M) - rx, rh = Math.min(st.H, b.y + b.h + M) - ry;
+      b.region = { data: st.sctx.getImageData(rx, ry, rw, rh).data, w: rw, h: rh };
+      b.inner = { x: b.x - rx, y: b.y - ry, w: b.w, h: b.h };
+      b.data = Efx.applyEfx(b.region.data, rw, rh, 4, 255, b.inner, b.x, b.y, { active: false }, null);
+      b.dx = (b.x * V.s + V.ox) * R; b.dy = (b.y * V.s + V.oy) * R;
+    } else {                                              // zoomed out: photo shown smaller, grain averaged like a real downscale
+      b.full = false;
+      b.dx = Math.round(dx0); b.dy = Math.round(dy0);
+      b.w = Math.max(1, Math.round(dx1) - b.dx); b.h = Math.max(1, Math.round(dy1) - b.dy);
+      let L = 0; while (L + 1 < mips.length && 2 ** (L + 1) <= k) L++;
+      const f = 2 ** L, m = mips[L];
+      tmp.width = b.w; tmp.height = b.h; tctx.imageSmoothingQuality = "high";
+      tctx.drawImage(m, sx0 / f, sy0 / f, (sx1 - sx0) / f, (sy1 - sy0) / f, 0, 0, b.w, b.h);
+      b.data = tctx.getImageData(0, 0, b.w, b.h).data;
+      b.region = { data: b.data, w: b.w, h: b.h }; b.inner = { x: 0, y: 0, w: b.w, h: b.h };
+      b.gx = Math.round(sx0 / k); b.gy = Math.round(sy0 / k);
+    }
+    b.prepKey = ""; b.prep = null; b.efxKey = ""; b.noiseKey = "";
+    st.base = b;
+    drawn = { s: V.s, ox: V.ox, oy: V.oy };
+  }
+
+  // per-pixel grain shape at Amount 100: sigma (from luminance) and skewed noise per channel, same math as Engine.grainCombine
+  function prepare(src, N, S, fields) {
+    const sig = new Float32Array(N), z = new Float32Array(N * 3);
+    const nr = fields[0], ng = fields[1] || nr, nb = fields[2] || nr;
+    const gd = 0.37 / 6, gs = 0.80 / 6 / 255;
+    for (let i = 0, p = 0; i < N; i++, p += 4) {
+      let Y = 0.299 * src[p] + 0.587 * src[p + 1] + 0.114 * src[p + 2];
+      Y = Y < 0 ? 0 : Y > 255 ? 255 : Y;
+      sig[i] = S.lut[Y | 0];
+      const gam = gd - gs * Y;
+      let v = nr[i]; z[i * 3] = v + gam * (v * v - 1);
+      v = ng[i]; z[i * 3 + 1] = v + gam * (v * v - 1);
+      v = nb[i]; z[i * 3 + 2] = v + gam * (v * v - 1);
+    }
+    return { sig, z };
+  }
+  function combineFast(src, N, P, a) {
+    const dst = new Uint8ClampedArray(N * 4), sig = P.sig, z = P.z;
+    for (let i = 0, p = 0, q = 0; i < N; i++, p += 4, q += 3) {
+      const s = sig[i] * a;
+      dst[p] = src[p] + s * z[q];               // clamped array rounds to nearest
+      dst[p + 1] = src[p + 1] + s * z[q + 1];
+      dst[p + 2] = src[p + 2] + s * z[q + 2];
+      dst[p + 3] = 255;
+    }
+    return dst;
+  }
+
+  function render() {
+    raf = 0;
+    if (!st.src) return;
+    if (needBase || !st.base) { needBase = false; computeBase(); }
+    const b = st.base, o = opts();
+    let out;
+    if (st.before) out = b.data;
+    else {
+      const efxKey = `${o.soft}/${o.glow}`, key = `${o.iso}/${o.bw}/${o.half}`;
+      if (b.efxKey !== efxKey) {                         // Glow / Soft run before the grain, as on film
+        const { E, gm } = efxFor(b, o);
+        b.pre = E.active ? Efx.applyEfx(b.region.data, b.region.w, b.region.h, 4, 255, b.inner, b.full ? b.x : b.gx, b.full ? b.y : b.gy, E, gm) : b.data;
+        b.efxKey = efxKey;
+      }
+      if (b.noiseKey !== key) {
+        let S = Engine.makeSettings({ ...o, amount: 100 }, st.W, st.H);
+        if (!b.full) {
+          const f = grainFactor(S, b.k, key);
+          S = { ...S, kern: Engine.gaussKernel(Math.max(0.3, S.blur / b.k)), lut: S.lut.map((v) => v * f) };
+        }
+        b.S = S;
+        b.noise = b.full ? Engine.noiseFields(b.w, b.h, b.y, b.x, S) : Engine.noiseFields(b.w, b.h, b.gy, b.gx, S);
+        b.noiseKey = key;
+      }
+      if (b.prepKey !== efxKey + "|" + key) { b.prep = prepare(b.pre, b.w * b.h, b.S, b.noise); b.prepKey = efxKey + "|" + key; }
+      out = combineFast(b.pre, b.w * b.h, b.prep, o.amount / 100);
+    }
+    const img = new ImageData(new Uint8ClampedArray(out.buffer, out.byteOffset, b.w * b.h * 4), b.w, b.h);
+    vctx.setTransform(1, 0, 0, 1, 0, 0);
+    vctx.clearRect(0, 0, view.width, view.height);
+    if (b.full && b.ppx !== 1) {
+      tmp.width = b.w; tmp.height = b.h; tctx.putImageData(img, 0, 0);
+      vctx.imageSmoothingEnabled = b.ppx < 2;
+      vctx.drawImage(tmp, b.dx, b.dy, b.w * b.ppx, b.h * b.ppx);
+    } else vctx.putImageData(img, Math.round(b.dx), Math.round(b.dy));
+    view.style.transform = ""; view.style.opacity = "";
+    updateUnder();
+    $("beforeTag").hidden = !st.before;
+    updateChrome();
+  }
+
+  function updateChrome() {
+    const o = opts(), pct = Math.round(V.s * DPR() * 100);
+    $("tAmount").textContent = String(o.amount);
+    $("tIso").textContent = String(o.iso);
+    $("tColor").textContent = o.bw ? "B&W" : "Color";
+    $("tFrame").textContent = o.half ? "Half" : "Full";
+    $("tGlow").textContent = String(o.glow);
+    $("tSoft").textContent = String(o.soft);
+    $("zFit").classList.toggle("on", !!V.fit);
+    $("z100").textContent = V.fit || Math.abs(pct - 100) < 1 ? "100%" : pct + "%";
+    $("z100").classList.toggle("on", !V.fit);
+    viewer.classList.toggle("zoomed", !V.fit);
+    mini.hidden = !!V.fit;
+    if (!V.fit) drawMini();
+  }
+
+  function drawMini() {
+    if (!st.src) return;
+    const maxW = Math.min(140, viewer.clientWidth * 0.3), s = Math.min(maxW / st.W, 100 / st.H);
+    const mw = Math.max(1, Math.round(st.W * s)), mh = Math.max(1, Math.round(st.H * s));
+    if (mini.width !== mw || mini.height !== mh || mini._src !== st.src) {
+      mini.width = mw; mini.height = mh; mini._src = st.src;
+      mini._base = document.createElement("canvas"); mini._base.width = mw; mini._base.height = mh;
+      const g = mini._base.getContext("2d"); g.imageSmoothingQuality = "high"; g.drawImage(mips[mips.length - 1] || st.src, 0, 0, mw, mh);
+    }
+    const m = mini.getContext("2d");
+    m.drawImage(mini._base, 0, 0);
+    const vx = -V.ox / V.s, vy = -V.oy / V.s, vw = viewer.clientWidth / V.s, vh = viewer.clientHeight / V.s;
+    m.strokeStyle = "#d38a55"; m.lineWidth = 1.5;
+    m.strokeRect(Math.max(0, vx) * s + 0.75, Math.max(0, vy) * s + 0.75, Math.max(3, Math.min(vw, st.W) * s - 1.5), Math.max(3, Math.min(vh, st.H) * s - 1.5));
+    mini._scale = s;
+  }
+
+  /* ---------- compare ---------- */
+  const cmp = $("compare");
+  const setBefore = (v) => { if (st.before === v) return; st.before = v; cmp.classList.toggle("active", v); schedule(false); };
+  cmp.addEventListener("pointerdown", (e) => { e.preventDefault(); cmp.setPointerCapture(e.pointerId); setBefore(true); });
+  ["pointerup", "pointercancel", "lostpointercapture"].forEach((ev) => cmp.addEventListener(ev, () => setBefore(false)));
+  cmp.addEventListener("keydown", (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); setBefore(true); } });
+  cmp.addEventListener("keyup", () => setBefore(false));
+
+  /* ---------- gestures on the photo: drag, pinch, wheel, double-tap, press and hold for the original ---------- */
+  const pts = new Map();
+  let pinch = null, pan = null, moved = false, holdT = 0, lastTap = { t: 0, x: 0, y: 0 };
+  const local = (e) => { const r = viewer.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  viewer.addEventListener("pointerdown", (e) => {
+    if (!st.src) return;
+    viewer.setPointerCapture(e.pointerId);
+    pts.set(e.pointerId, local(e)); moved = false;
+    clearTimeout(holdT);
+    if (pts.size === 2) {
+      const [a, b] = [...pts.values()];
+      pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), s: V.s, mx: (a[0] + b[0]) / 2, my: (a[1] + b[1]) / 2 };
+      pan = null; setBefore(false);
+    } else if (pts.size === 1) {
+      const [x, y] = local(e); pan = { x, y, x0: x, y0: y };
+      viewer.classList.add("dragging");
+      holdT = setTimeout(() => { if (!moved && pts.size === 1) setBefore(true); }, 380);
+    }
+  });
+  viewer.addEventListener("pointermove", (e) => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, local(e));
+    if (pinch && pts.size >= 2) {
+      const [a, b] = [...pts.values()];
+      const d = Math.hypot(a[0] - b[0], a[1] - b[1]), mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+      V.ox += mx - pinch.mx; V.oy += my - pinch.my; pinch.mx = mx; pinch.my = my;
+      zoomAt(pinch.s * (d / pinch.d), mx, my); moved = true; interim();
+    } else if (pan) {
+      const [x, y] = local(e);
+      if (Math.abs(x - pan.x0) + Math.abs(y - pan.y0) > 6) { moved = true; clearTimeout(holdT); }
+      if (!st.before) { V.ox += x - pan.x; V.oy += y - pan.y; clampPan(); if (moved) interim(); }
+      pan.x = x; pan.y = y;
+    }
+  });
+  const lift = (e) => {
+    if (!pts.has(e.pointerId)) return;
+    const wasSingle = pts.size === 1 && !pinch;
+    pts.delete(e.pointerId);
+    clearTimeout(holdT);
+    if (st.before) setBefore(false);
+    else if (wasSingle && !moved && e.type === "pointerup") {      // double-tap toggles Fit and 100%
+      const [x, y] = local(e), now = performance.now();
+      if (now - lastTap.t < 320 && Math.hypot(x - lastTap.x, y - lastTap.y) < 30) {
+        if (V.fit) zoomAt(1 / DPR(), x, y); else setFit();
+        schedule(true); lastTap.t = 0;
+      } else lastTap = { t: now, x, y };
+    }
+    if (pts.size < 2) pinch = null;
+    if (pts.size === 0) {
+      pan = null; viewer.classList.remove("dragging");
+      if (moved) { clearTimeout(settleT); schedule(true); }      // gesture finished: render the new view now
+    }
+  };
+  viewer.addEventListener("pointerup", lift);
+  viewer.addEventListener("pointercancel", lift);
+  viewer.addEventListener("wheel", (e) => {
+    if (!st.src) return;
+    e.preventDefault();
+    const [x, y] = local(e);
+    zoomAt(V.s * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)), x, y); interim();
+  }, { passive: false });
+  $("zFit").addEventListener("click", () => { setFit(); schedule(true); });
+  $("z100").addEventListener("click", () => { const [x, y] = center(); zoomAt(1 / DPR(), x, y); schedule(true); });
+  const miniJump = (e) => {
+    const r = mini.getBoundingClientRect(), s = mini._scale || 1, k = mini.width / r.width;
+    const ix = ((e.clientX - r.left) * k) / s, iy = ((e.clientY - r.top) * k) / s;
+    const [cx, cy] = center();
+    V.ox = cx - ix * V.s; V.oy = cy - iy * V.s; clampPan(); schedule(true);
+  };
+  mini.addEventListener("pointerdown", (e) => { e.stopPropagation(); mini.setPointerCapture(e.pointerId); mini._down = true; miniJump(e); });
+  mini.addEventListener("pointermove", (e) => { if (mini._down) miniJump(e); });
+  mini.addEventListener("pointerup", () => { mini._down = false; });
+
+  /* ---------- sheet ---------- */
+  document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", String(t === tab)));
+    document.querySelectorAll(".pane").forEach((p) => { p.hidden = p.dataset.pane !== tab.dataset.tab; });
+  }));
+  const amount = $("amount"), amountNum = $("amountNum");
+  amount.addEventListener("input", () => { amountNum.value = amount.value; schedule(false); });
+  amount.addEventListener("dblclick", () => { amount.value = 100; amountNum.value = 100; schedule(false); });
+  amountNum.addEventListener("change", () => {
+    const v = Math.max(0, Math.min(200, Math.round(Number(amountNum.value) || 0)));
+    amountNum.value = v; amount.value = v; schedule(false);
+  });
+  document.querySelectorAll('input[name="iso"], input[name="color"], input[name="frame"]').forEach((el) => el.addEventListener("change", () => schedule(false)));
+  for (const id of ["glow", "soft"]) {
+    const r = $(id), n = $(id + "Num");
+    r.addEventListener("input", () => { n.value = r.value; efxInput(); });
+    r.addEventListener("dblclick", () => { r.value = 0; n.value = 0; schedule(false); });
+    n.addEventListener("change", () => { const v = Math.max(0, Math.min(100, Math.round(Number(n.value) || 0))); n.value = v; r.value = v; schedule(false); });
+  }
+  let resizeT = 0;
+  window.addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (!st.src) return; if (V.fit) setFit(); else clampPan(); schedule(true); }, 80); });
+
+  /* ---------- save ---------- */
+  let downloads = null;
+  try { window.claude?.use?.("downloads").then((d) => { downloads = d; }).catch(() => {}); } catch (e) { /* not in a viewer */ }
+  let worker = null;
+  function getWorker() {
+    if (worker) return worker;
+    const code = $("engine-src").textContent + "\nself.Engine = Engine; self.Efx = Efx;\n" + $("worker-src").textContent;
+    worker = new Worker(URL.createObjectURL(new Blob([code], { type: "text/javascript" })));
+    return worker;
+  }
+  let lastUrl = null;
+  let pendingFile = null;
+  $("closeResult").addEventListener("click", () => { $("result").hidden = true; });
+  $("shareBtn").addEventListener("click", async () => {
+    if (!pendingFile) return;
+    try { await navigator.share({ files: [pendingFile] }); $("result").hidden = true; } catch (e) { /* cancelled */ }
+  });
+  $("save").addEventListener("click", async () => {
+    if (!st.src || st.busy) return;
+    st.busy = true; $("save").disabled = true;
+    const bar = $("bar"), fill = $("barFill"); bar.hidden = false; fill.style.width = "0%";
+    const o = opts(), W = st.W, H = st.H, t0 = performance.now();
+    setStatus(`Adding grain to ${W} × ${H} px…`, true);
+    try {
+      const img = st.sctx.getImageData(0, 0, W, H);
+      const w = getWorker();
+      const buf = await new Promise((resolve, reject) => {
+        w.onmessage = (e) => {
+          if (e.data.progress != null) fill.style.width = Math.round(e.data.progress * 100) + "%";
+          if (e.data.done) resolve(e.data.buf);
+        };
+        w.onerror = (e) => reject(e);
+        if (o.glow > 0) ensureGlow();
+        const glow = o.glow > 0 && st.glow ? { ...st.glow, data: st.glow.data.slice() } : null;
+        w.postMessage({ buf: img.data.buffer, W, H, opts: o, glow }, glow ? [img.data.buffer, glow.data.buffer] : [img.data.buffer]);
+      });
+      setStatus("Encoding JPEG…", true);
+      const c = document.createElement("canvas"); c.width = W; c.height = H;
+      c.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(buf), W, H), 0, 0);
+      const blob = await new Promise((res) => c.toBlob(res, "image/jpeg", 0.95));
+      c.width = c.height = 0;
+      if (!blob) throw new Error("encode");
+      const secs = ((performance.now() - t0) / 1000).toFixed(1);
+      const filename = `${st.name}_ttraw${o.iso}${o.bw ? "bw" : ""}${o.half ? "half" : ""}${o.glow || o.soft ? "_efx" : ""}.jpg`;
+      const file = new File([blob], filename, { type: "image/jpeg" });
+      const canShare = !!(navigator.canShare && navigator.canShare({ files: [file] }));
+      const touch = navigator.maxTouchPoints > 0;
+      const showFallback = () => {
+        if (lastUrl) URL.revokeObjectURL(lastUrl);
+        lastUrl = URL.createObjectURL(blob); $("resultImg").src = lastUrl;
+        $("dlLink").href = lastUrl; $("dlLink").download = filename;
+        $("shareBtn").hidden = !canShare; pendingFile = file;
+        $("result").hidden = false; setStatus("");
+      };
+      if (downloads) {
+        try { await downloads.save({ filename, data: blob }); setStatus(`Saved ${filename} (${secs} s).`); }
+        catch (err) {
+          if (err && err.code === "declined") setStatus("Save cancelled.");
+          else showFallback();
+        }
+      } else if (touch && canShare) {
+        // phones: the share sheet has "Save Image", which puts it straight into the photo library
+        try { await navigator.share({ files: [file] }); setStatus(`Done (${secs} s).`); }
+        catch (err) { if (err && err.name === "AbortError") setStatus("Save cancelled."); else showFallback(); }
+      } else if (!touch) {
+        const a = document.createElement("a"), url = URL.createObjectURL(blob);
+        a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        setStatus(`Saved ${filename} (${secs} s).`);
+      } else showFallback();
+    } catch (e) {
+      setStatus("Couldn't finish this photo. It may be too large for this device; try a smaller copy.");
+    } finally {
+      st.busy = false; $("save").disabled = false; bar.hidden = true;
+    }
+  });
+
+  setSource(drawSample(), "ttraw_sample", true);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (st.sample) setSource(drawSample(), "ttraw_sample", true); });
+})();
+</script>
+
+</body>
+</html>
