@@ -1,8 +1,8 @@
 {
-  "version": "0.4.3",
-  "notes": "Grain recalibrated on 31 of the author's film rolls: blue-heavy, blue-yellow colour grain like real colour negative, more of it at 400. Choices are now ISO 100 / 200 / 400 / Half. Each photo gets its own grain pattern (the same photo always keeps it).",
-  "notes_ko": "필름 31롤을 다시 분석해 그레인을 맞췄어요. 실제 컬러 네거티브처럼 파랑이 거칠고 파랑·노랑 색 얼룩이 생기며, 400일수록 강해요. 선택지는 ISO 100 / 200 / 400 / 하프. 사진마다 다른 그레인 패턴이 들어가요(같은 사진은 항상 같은 패턴).",
-  "notes_ja": "フィルム31本を再分析して粒子を調整しました。実際のカラーネガのように青が粗く、青・黄の色ムラが出て、400ほど強くなります。選択肢はISO 100 / 200 / 400 / ハーフ。写真ごとに異なる粒子パターンになります（同じ写真は常に同じパターン）。",
-  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.4.3.ccx",
+  "version": "0.4.4",
+  "notes": "Undo / redo for panel settings (buttons next to GRAIN, ⌘Z / ⇧⌘Z). Dragging the preview no longer switches Fit/100% (or ISO, colour) when the mouse is let go over them. Includes 0.4.3: grain recalibrated on 31 film rolls, ISO 100/200/400/Half, per-photo grain pattern.",
+  "notes_ko": "패널 설정 되돌리기/다시 실행이 생겼어요(GRAIN 옆 버튼, ⌘Z / ⇧⌘Z). 프리뷰를 드래그하다 Fit/100%(ISO·컬러) 위에서 놓아도 더 이상 바뀌지 않아요. 0.4.3 내용 포함: 필름 31롤로 다시 맞춘 그레인, ISO 100/200/400/하프, 사진별 그레인 패턴.",
+  "notes_ja": "パネル設定の取り消し/やり直しを追加しました（GRAIN横のボタン、⌘Z / ⇧⌘Z）。プレビューをドラッグしてFit/100%（ISO・カラー）の上で離しても切り替わらなくなりました。0.4.3の内容を含みます：フィルム31本で再調整した粒子、ISO 100/200/400/ハーフ、写真ごとの粒子パターン。",
+  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.4.4.ccx",
   "page": "https://from-ttraw.github.io/ttraw-grain/"
 }
