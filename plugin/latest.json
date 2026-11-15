@@ -1,8 +1,8 @@
 {
-  "version": "0.4.1",
-  "notes": "The panel language now always follows Photoshop's language (English, Korean, Japanese).",
-  "notes_ko": "패널 언어가 Photoshop 언어에 맞춰 자동으로 바뀌어요 (한국어·영어·일본어).",
-  "notes_ja": "パネルの言語がPhotoshopの言語に合わせて自動で切り替わります（日本語・英語・韓国語）。",
-  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.4.1.ccx",
+  "version": "0.4.2",
+  "notes": "Grain now goes right above the selected layer (text and layers above stay clean). Earlier effect layers are kept for comparison; select one to see and edit its settings. Apply is always visible.",
+  "notes_ko": "선택한 레이어 바로 위에 효과가 들어가요(위의 텍스트·레이어는 그대로). 이전 효과 레이어는 비교용으로 남고, 선택하면 설정을 보고 수정할 수 있어요. 적용 버튼이 항상 보여요.",
+  "notes_ja": "選択したレイヤーのすぐ上に効果が入ります（上のテキストやレイヤーはそのまま）。以前の効果レイヤーは比較用に残り、選択すると設定を確認・編集できます。適用ボタンが常に表示されます。",
+  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.4.2.ccx",
   "page": "https://from-ttraw.github.io/ttraw-grain/"
 }
