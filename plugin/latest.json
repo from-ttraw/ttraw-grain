@@ -1,8 +1,8 @@
 {
-  "version": "0.4.0",
-  "notes": "Korean and Japanese panel text (follows Photoshop's language; change it with the button at the bottom).",
-  "notes_ko": "패널이 한국어·일본어를 지원해요 (Photoshop 언어를 따라가고, 맨 아래 버튼으로 바꿀 수 있어요).",
-  "notes_ja": "パネルが韓国語・日本語に対応しました（Photoshopの言語に合わせます。下のボタンで切り替えできます）。",
-  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.4.0.ccx",
+  "version": "0.4.1",
+  "notes": "The panel language now always follows Photoshop's language (English, Korean, Japanese).",
+  "notes_ko": "패널 언어가 Photoshop 언어에 맞춰 자동으로 바뀌어요 (한국어·영어·일본어).",
+  "notes_ja": "パネルの言語がPhotoshopの言語に合わせて自動で切り替わります（日本語・英語・韓国語）。",
+  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.4.1.ccx",
   "page": "https://from-ttraw.github.io/ttraw-grain/"
 }
