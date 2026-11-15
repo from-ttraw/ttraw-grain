@@ -81,13 +81,18 @@
   /* chips under the bar */
   .chips {
     position: absolute; z-index: 2; left: max(16px, env(safe-area-inset-left, 0px)); top: calc(env(safe-area-inset-top, 0px) + 66px);
-    display: flex; gap: 6px; align-items: center; max-width: calc(100% - 200px);
+    display: flex; gap: 6px; align-items: center; max-width: calc(100% - 32px);
   }
+  .chips > .chip:not(.label-chip) { flex: 0 0 auto; white-space: nowrap; }
+  body:has(#viewer.zoomed) .chips { max-width: calc(100% - 200px); } /* the mini map sits on the right while zoomed */
   .chip {
     height: 28px; padding: 0 10px; border-radius: 14px; border: 0; background: var(--glass); color: var(--fg);
     font-family: var(--font-mono); font-size: 12px; cursor: pointer; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   }
   .chip.on { background: var(--fg); color: var(--bg); }
+  .icon-chip { width: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+  .icon-chip svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .icon-chip:disabled { opacity: 0.35; cursor: default; }
   .label-chip { cursor: default; font-family: var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; line-height: 28px; }
   #mini {
     position: absolute; z-index: 2; right: max(16px, env(safe-area-inset-right, 0px)); top: calc(env(safe-area-inset-top, 0px) + 66px);
@@ -186,6 +191,8 @@
   <div class="chips">
     <button class="chip on" id="zFit" type="button" data-i18n="fit">Fit</button>
     <button class="chip" id="z100" type="button">100%</button>
+    <button class="chip icon-chip" id="undo" type="button" disabled data-i18n-title="undo" data-i18n-aria="undo" title="Undo" aria-label="Undo"><svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12h-2" transform="translate(0 -6)"/></svg></button>
+    <button class="chip icon-chip" id="redo" type="button" disabled data-i18n-title="redo" data-i18n-aria="redo" title="Redo" aria-label="Redo"><svg viewBox="0 0 24 24"><path d="M15 7l5 5-5 5"/><path d="M20 12H10a6 6 0 0 0 0 12h2" transform="translate(0 -6)"/></svg></button>
     <span class="chip label-chip" id="badge" data-i18n="sample">Sample photo</span>
   </div>
   <canvas id="mini" hidden data-i18n-aria="a.mini" aria-label="Whole photo. Tap to move around."></canvas>
@@ -1024,7 +1031,7 @@ self.onmessage = (e) => {
   const $ = (id) => document.getElementById(id);
   /* ---------- language: follows the phone / browser language (Korean, Japanese, otherwise English) ---------- */
   const I18N = {
-    en: { open: "Open photo", compare: "Hold to see original", save: "Save", "save.tip": "Save full-size JPEG", fit: "Fit", sample: "Sample photo", original: "Original",
+    en: { undo: "Undo (previous settings)", redo: "Redo", open: "Open photo", compare: "Hold to see original", save: "Save", "save.tip": "Save full-size JPEG", fit: "Fit", sample: "Sample photo", original: "Original",
       amount: "Amount", iso: "ISO", color: "Color", frame: "Frame", glow: "Glow", soft: "Soft",
       "amount.head": "Grain amount", "amount.hint": "100 matches the measured film. Double-tap the slider to reset.",
       "iso.head": "Film speed", "iso.sub": "Higher ISO, stronger grain with more colour. Half: half-frame grain",
@@ -1041,7 +1048,7 @@ self.onmessage = (e) => {
       "st.adding": "Adding grain to {w} × {h} px…", "st.encoding": "Encoding JPEG…",
       "st.saved": "Saved {f} ({s} s).", "st.done": "Done ({s} s).", "st.cancelled": "Save cancelled.",
       "st.failed": "Couldn't finish this photo. It may be too large for this device; try a smaller copy." },
-    ko: { open: "사진 열기", compare: "누르고 있으면 원본", save: "저장", "save.tip": "원본 크기 JPEG로 저장", fit: "전체", sample: "샘플 사진", original: "원본",
+    ko: { undo: "이전 설정으로 되돌리기", redo: "다시 실행", open: "사진 열기", compare: "누르고 있으면 원본", save: "저장", "save.tip": "원본 크기 JPEG로 저장", fit: "전체", sample: "샘플 사진", original: "원본",
       amount: "양", iso: "감도", color: "색", frame: "프레임", glow: "글로우", soft: "소프트",
       "amount.head": "그레인 양", "amount.hint": "100이 실측 필름과 같은 세기예요. 슬라이더를 두 번 누르면 처음 값으로 돌아가요.",
       "iso.head": "필름 감도", "iso.sub": "감도가 높을수록 그레인이 진하고 색 얼룩이 많아요. 하프는 하프 프레임 그레인",
@@ -1058,7 +1065,7 @@ self.onmessage = (e) => {
       "st.adding": "{w} × {h} px에 그레인 넣는 중…", "st.encoding": "JPEG로 저장하는 중…",
       "st.saved": "{f} 저장했어요 ({s}초).", "st.done": "완료 ({s}초).", "st.cancelled": "저장을 취소했어요.",
       "st.failed": "이 사진을 처리하지 못했어요. 이 기기에서 너무 클 수 있으니 더 작은 사진으로 해보세요." },
-    ja: { open: "写真を開く", compare: "押している間は元画像", save: "保存", "save.tip": "元のサイズでJPEG保存", fit: "全体", sample: "サンプル写真", original: "元画像",
+    ja: { undo: "前の設定に戻す", redo: "やり直す", open: "写真を開く", compare: "押している間は元画像", save: "保存", "save.tip": "元のサイズでJPEG保存", fit: "全体", sample: "サンプル写真", original: "元画像",
       amount: "量", iso: "感度", color: "色", frame: "フレーム", glow: "グロー", soft: "ソフト",
       "amount.head": "グレインの量", "amount.hint": "100が実測フィルムと同じ強さです。スライダーをダブルタップで初期値に戻ります。",
       "iso.head": "フィルム感度", "iso.sub": "感度が高いほど粒子が強く、色ノイズが増えます。ハーフはハーフ判の粒子",
@@ -1553,6 +1560,38 @@ self.onmessage = (e) => {
     r.addEventListener("dblclick", () => { r.value = 0; n.value = 0; schedule(false); });
     n.addEventListener("change", () => { const v = Math.max(0, Math.min(100, Math.round(Number(n.value) || 0))); n.value = v; r.value = v; schedule(false); });
   }
+  /* ---------- undo / redo of settings ---------- */
+  // every finished change (slider let go, number typed, choice tapped, double-tap reset) is one step back
+  const snap = () => JSON.stringify({ a: amount.value, g: $("glow").value, s: $("soft").value, i: isoPick(),
+    c: document.querySelector('input[name="color"]:checked').value });
+  let hist = [snap()], hpos = 0;
+  function updUndo() { $("undo").disabled = hpos <= 0; $("redo").disabled = hpos >= hist.length - 1; }
+  function commit() {
+    const s = snap(); if (s === hist[hpos]) return;
+    hist = hist.slice(0, hpos + 1); hist.push(s);
+    if (hist.length > 100) hist.shift();
+    hpos = hist.length - 1; updUndo();
+  }
+  function restore(s) {
+    const o = JSON.parse(s);
+    amount.value = amountNum.value = o.a;
+    $("glow").value = $("glowNum").value = o.g; $("soft").value = $("softNum").value = o.s;
+    document.querySelector(`input[name="iso"][value="${o.i}"]`).checked = true;
+    document.querySelector(`input[name="color"][value="${o.c}"]`).checked = true;
+    needBase = true; schedule(true);
+  }
+  const undo = () => { if (hpos > 0) { hpos--; restore(hist[hpos]); updUndo(); } };
+  const redo = () => { if (hpos < hist.length - 1) { hpos++; restore(hist[hpos]); updUndo(); } };
+  $("undo").addEventListener("click", undo);
+  $("redo").addEventListener("click", redo);
+  const sheetEl = $("sheet");
+  sheetEl.addEventListener("change", () => setTimeout(commit, 0));
+  sheetEl.addEventListener("dblclick", () => setTimeout(commit, 0));
+  window.addEventListener("keydown", (e) => {
+    if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "z" || /^(INPUT|TEXTAREA)$/.test(document.activeElement && document.activeElement.tagName) && document.activeElement.type === "number") return;
+    e.preventDefault(); if (e.shiftKey) redo(); else undo();
+  });
+
   let resizeT = 0;
   window.addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (!st.src) return; if (V.fit) setFit(); else clampPan(); schedule(true); }, 80); });
 
