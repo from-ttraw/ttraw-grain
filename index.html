@@ -45,8 +45,8 @@
      There the layout takes the real screen height (--appH, set by script; 100vh as a CSS fallback). */
   @media (display-mode: standalone) {
     html, body, body .app { bottom: auto; height: var(--appH, 100vh); }
-    /* the bottom band (--gapB) is laid out but never drawn by iOS: keep the sheet above it */
-    body .sheet { bottom: var(--gapB, 0px); padding-bottom: calc(12px + max(0px, env(safe-area-inset-bottom, 0px) - var(--gapB, 0px))); }
+    /* iOS 26 lays out the full screen but leaves a bottom band the height of the status bar undrawn: keep the sheet above it */
+    body .sheet { bottom: env(safe-area-inset-top, 0px); padding-bottom: 12px; }
   }
   /* an app, not a document: holding a button must not start text selection or the iOS callout */
   body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
@@ -225,23 +225,25 @@
     <div class="pane" data-pane="amount" role="tabpanel">
       <div class="pane-head"><span data-i18n="amount.head">Grain amount</span><input class="value" type="number" id="amountNum" min="0" max="150" step="1" value="100" data-i18n-aria="amount" aria-label="Amount value"></div>
       <input type="range" id="amount" min="0" max="150" step="1" value="100" data-i18n-aria="amount" aria-label="Amount">
-      <div class="hint" data-i18n="amount.hint">100 matches the measured film. Double-tap the slider to reset.</div>
+      <div class="hint" data-i18n="amount.hint">100 matches the measured film. Double-tap to reset.</div>
     </div>
     <div class="pane" data-pane="iso" role="tabpanel" hidden>
-      <div class="pane-head"><span data-i18n="iso.head">Film speed</span><small data-i18n="iso.sub">Higher ISO, stronger grain with more colour. Half: half-frame grain</small></div>
+      <div class="pane-head"><span data-i18n="iso.head">Film speed</span></div>
       <div class="seg mono" role="radiogroup" aria-label="Film speed">
         <label><input type="radio" name="iso" id="iso100" value="100"><span>100</span></label>
         <label><input type="radio" name="iso" id="iso200" value="200"><span>200</span></label>
         <label><input type="radio" name="iso" id="iso400" value="400" checked><span>400</span></label>
         <label><input type="radio" name="iso" id="isoHalf" value="half"><span data-i18n="frame.half">Half</span></label>
       </div>
+      <div class="hint" data-i18n="iso.sub">Higher ISO, stronger grain with more colour. Half is half-frame grain.</div>
     </div>
     <div class="pane" data-pane="color" role="tabpanel" hidden>
-      <div class="pane-head"><span data-i18n="color.head">Grain color</span><small data-i18n="color.sub">Color negative or black and white</small></div>
+      <div class="pane-head"><span data-i18n="color.head">Grain color</span></div>
       <div class="seg" role="radiogroup" aria-label="Grain color">
         <label><input type="radio" name="color" id="colorC" value="color" checked><span data-i18n="color.color">Color</span></label>
         <label><input type="radio" name="color" id="colorBW" value="bw"><span data-i18n="color.bw">B&amp;W</span></label>
       </div>
+      <div class="hint" data-i18n="color.sub">Color negative or black and white</div>
     </div>
     <div class="pane" data-pane="glow" role="tabpanel" hidden>
       <div class="pane-head"><span data-i18n="glow">Glow</span><input class="value" type="number" id="glowNum" min="0" max="100" step="1" value="0" aria-label="Glow value"></div>
@@ -1095,16 +1097,10 @@ self.onmessage = (e) => {
 (() => {
   const $ = (id) => document.getElementById(id);
   const STANDALONE = navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
-  const drawnH = {};
   function fitScreen() {
     if (!STANDALONE) return;
     const portrait = innerHeight >= innerWidth, full = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
-    // iOS 26 first reports the short (drawn) height; once the page is made full height it reports the full one,
-    // so the smallest height seen in each orientation is what iOS actually draws
-    const o = portrait ? "p" : "l"; drawnH[o] = Math.min(drawnH[o] || Infinity, innerHeight);
-    const h = Math.max(innerHeight, full), root = document.documentElement.style;
-    root.setProperty("--appH", h + "px");
-    root.setProperty("--gapB", Math.max(0, Math.min(80, h - drawnH[o])) + "px");
+    document.documentElement.style.setProperty("--appH", Math.max(innerHeight, full) + "px");
   }
   fitScreen();
   addEventListener("orientationchange", () => setTimeout(fitScreen, 300));
@@ -1112,7 +1108,7 @@ self.onmessage = (e) => {
   const I18N = {
     en: { undo: "Undo (previous settings)", redo: "Redo", open: "Open photo", compare: "Hold to see original", save: "Save", "save.tip": "Save full-size JPEG", fit: "Fit", sample: "Sample photo", original: "Original",
       amount: "Amount", iso: "ISO", color: "Color", frame: "Frame", glow: "Glow", soft: "Soft",
-      "amount.head": "Grain amount", "amount.hint": "100 matches the measured film. Double-tap the slider to reset.",
+      "amount.head": "Grain amount", "amount.hint": "100 matches the measured film. Double-tap to reset.",
       "iso.head": "Film speed", "iso.sub": "Higher ISO, stronger grain with more colour. Half is half-frame grain.",
       "color.head": "Grain color", "color.sub": "Color negative or black and white", "color.color": "Color", "color.bw": "B&W",
       "frame.head": "Frame size", "frame.sub": "Half frame enlarges the grain", "frame.full": "Full", "frame.half": "Half",
@@ -1129,7 +1125,7 @@ self.onmessage = (e) => {
       "st.failed": "Couldn't finish this photo. It may be too large for this device; try a smaller copy." },
     ko: { undo: "이전 설정으로 되돌리기", redo: "다시 실행", open: "사진 열기", compare: "누르고 있으면 원본", save: "저장", "save.tip": "원본 크기 JPEG로 저장", fit: "전체", sample: "샘플 사진", original: "원본",
       amount: "양", iso: "감도", color: "색", frame: "프레임", glow: "글로우", soft: "소프트",
-      "amount.head": "그레인 양", "amount.hint": "100이 실측 필름과 같은 세기예요. 슬라이더를 두 번 누르면 처음 값으로 돌아가요.",
+      "amount.head": "그레인 양", "amount.hint": "100이 실측 필름과 같은 세기예요. 두 번 누르면 처음 값으로 돌아가요.",
       "iso.head": "필름 감도", "iso.sub": "감도가 높을수록 그레인이 진하고 색 얼룩이 많아요. 하프는 하프 프레임 그레인이에요.",
       "color.head": "그레인 색", "color.sub": "컬러 네거티브 또는 흑백", "color.color": "컬러", "color.bw": "흑백",
       "frame.head": "프레임 크기", "frame.sub": "하프 프레임은 입자가 더 커요", "frame.full": "풀", "frame.half": "하프",
@@ -1146,7 +1142,7 @@ self.onmessage = (e) => {
       "st.failed": "이 사진을 처리하지 못했어요. 이 기기에서 너무 클 수 있으니 더 작은 사진으로 해보세요." },
     ja: { undo: "前の設定に戻す", redo: "やり直す", open: "写真を開く", compare: "押している間は元画像", save: "保存", "save.tip": "元のサイズでJPEG保存", fit: "全体", sample: "サンプル写真", original: "元画像",
       amount: "量", iso: "感度", color: "色", frame: "フレーム", glow: "グロー", soft: "ソフト",
-      "amount.head": "グレインの量", "amount.hint": "100が実測フィルムと同じ強さです。スライダーをダブルタップで初期値に戻ります。",
+      "amount.head": "グレインの量", "amount.hint": "100が実測フィルムと同じ強さです。ダブルタップで初期値に戻ります。",
       "iso.head": "フィルム感度", "iso.sub": "感度が高いほど粒子が強く、色ノイズが増えます。ハーフはハーフ判の粒子です",
       "color.head": "グレインの色", "color.sub": "カラーネガまたはモノクロ", "color.color": "カラー", "color.bw": "モノクロ",
       "frame.head": "フレームサイズ", "frame.sub": "ハーフフレームは粒子が大きくなります", "frame.full": "フル", "frame.half": "ハーフ",
