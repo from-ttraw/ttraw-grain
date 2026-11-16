@@ -1,8 +1,8 @@
 {
-  "version": "0.4.5",
-  "notes": "Glow now starts from 40% brightness (was 55%), so bright mid-tones bloom a little too. Includes 0.4.4: settings undo/redo and the preview-drag fix.",
-  "notes_ko": "글로우가 밝기 40%부터 번지기 시작해요(이전 55%). 밝은 중간톤도 살짝 번져요. 0.4.4 내용 포함: 설정 되돌리기, 프리뷰 드래그 수정.",
-  "notes_ja": "グローが明るさ40%からにじみ始めます（以前は55%）。明るい中間調も少しにじみます。0.4.4の内容を含みます：設定の取り消し、プレビューのドラッグ修正。",
-  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.4.5.ccx",
+  "version": "0.4.6",
+  "notes": "Glow slider reworked: 1–100 now covers the useful range (the old 40–100), with finer steps; 100 is unchanged. Glow starts from 40% brightness. Includes settings undo/redo and the preview-drag fix.",
+  "notes_ko": "글로우 슬라이더를 다시 맞췄어요. 1~100이 쓸모 있는 구간(이전 40~100)을 더 세밀하게 나눠요. 100은 그대로예요. 글로우는 밝기 40%부터 번져요. 설정 되돌리기·프리뷰 드래그 수정 포함.",
+  "notes_ja": "グロースライダーを調整しました。1〜100で実用的な範囲（以前の40〜100）をより細かく調整できます。100はそのままです。グローは明るさ40%からにじみます。設定の取り消し・プレビューのドラッグ修正を含みます。",
+  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.4.6.ccx",
   "page": "https://from-ttraw.github.io/ttraw-grain/"
 }

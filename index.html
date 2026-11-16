@@ -542,7 +542,9 @@ const GLOW = { threshold: 0.40, knee: 0.95, strength: 0.65, radiusFrac: 0.010, t
 
 function efxSettings(opts, W, H) {
   const scale = Math.max(W, H) / G.SCAN_LONG_SIDE;
-  const soft = pct(opts.soft), degrade = pct(opts.degrade), glow = pct(opts.glow);
+  // Glow slider 1–100 covers what used to be 40–100 (the weak low end was never used): finer steps where it matters
+  const gRaw = pct(opts.glow), glow = gRaw > 0 ? 0.4 + 0.6 * gRaw : 0;
+  const soft = pct(opts.soft), degrade = pct(opts.degrade);
   const sSoft = soft * 1.2 * scale;
   const sDeg = degrade * 0.8 * scale;
   const sAll = Math.sqrt(sSoft * sSoft + sDeg * sDeg);
