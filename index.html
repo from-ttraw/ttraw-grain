@@ -98,6 +98,7 @@
   }
   .chips > .chip:not(.label-chip) { flex: 0 0 auto; white-space: nowrap; }
   body:has(#viewer.zoomed) .chips { max-width: calc(100% - 200px); } /* the mini map sits on the right while zoomed */
+  body:has(#viewer.zoomed) #badge { display: none; } /* no room for the file name beside the mini map: it returns at Fit */
   .chip {
     height: 28px; padding: 0 10px; border-radius: 14px; border: 0; background: var(--glass); color: var(--fg);
     font-family: var(--font-mono); font-size: 12px; cursor: pointer; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
