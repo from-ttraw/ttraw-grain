@@ -44,7 +44,9 @@
   /* iOS 26 home-screen apps report a viewport shorter than the screen (gap at the bottom, taps off target).
      There the layout takes the real screen height (--appH, set by script; 100vh as a CSS fallback). */
   @media (display-mode: standalone) {
-    html, body, .app { bottom: auto; height: var(--appH, 100vh); }
+    html, body, body .app { bottom: auto; height: var(--appH, 100vh); }
+    /* the bottom band (--gapB) is laid out but never drawn by iOS: keep the sheet above it */
+    body .sheet { bottom: var(--gapB, 0px); padding-bottom: calc(12px + max(0px, env(safe-area-inset-bottom, 0px) - var(--gapB, 0px))); }
   }
   /* an app, not a document: holding a button must not start text selection or the iOS callout */
   body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
@@ -1096,7 +1098,9 @@ self.onmessage = (e) => {
   function fitScreen() {
     if (!STANDALONE) return;
     const portrait = innerHeight >= innerWidth, full = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
-    document.documentElement.style.setProperty("--appH", Math.max(innerHeight, full) + "px");
+    const h = Math.max(innerHeight, full), root = document.documentElement.style;
+    root.setProperty("--appH", h + "px");
+    root.setProperty("--gapB", Math.max(0, h - innerHeight) + "px"); // iOS 26: taps use the full screen, drawing stops at innerHeight
   }
   fitScreen();
   addEventListener("orientationchange", () => setTimeout(fitScreen, 300));
