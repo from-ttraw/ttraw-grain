@@ -1,8 +1,8 @@
 {
-  "version": "0.4.6",
-  "notes": "Glow slider reworked: 1–100 now covers the useful range (the old 40–100), with finer steps; 100 is unchanged. Glow starts from 40% brightness. Includes settings undo/redo and the preview-drag fix.",
-  "notes_ko": "글로우 슬라이더를 다시 맞췄어요. 1~100이 쓸모 있는 구간(이전 40~100)을 더 세밀하게 나눠요. 100은 그대로예요. 글로우는 밝기 40%부터 번져요. 설정 되돌리기·프리뷰 드래그 수정 포함.",
-  "notes_ja": "グロースライダーを調整しました。1〜100で実用的な範囲（以前の40〜100）をより細かく調整できます。100はそのままです。グローは明るさ40%からにじみます。設定の取り消し・プレビューのドラッグ修正を含みます。",
-  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.4.6.ccx",
+  "version": "0.4.7",
+  "notes": "Double-click a slider to reset it (Amount 100, Glow and Soft 0).",
+  "notes_ko": "슬라이더를 더블클릭하면 기본값으로 돌아가요 (양 100, 글로우·소프트 0).",
+  "notes_ja": "スライダーをダブルクリックすると初期値に戻ります（量100、グロー・ソフト0）。",
+  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.4.7.ccx",
   "page": "https://from-ttraw.github.io/ttraw-grain/"
 }
