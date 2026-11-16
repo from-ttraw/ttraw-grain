@@ -1,8 +1,8 @@
 {
-  "version": "0.4.7",
-  "notes": "Double-click a slider to reset it (Amount 100, Glow and Soft 0).",
-  "notes_ko": "슬라이더를 더블클릭하면 기본값으로 돌아가요 (양 100, 글로우·소프트 0).",
-  "notes_ja": "スライダーをダブルクリックすると初期値に戻ります（量100、グロー・ソフト0）。",
-  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.4.7.ccx",
+  "version": "0.4.8",
+  "notes": "Undo / redo now keeps a separate history for each layer, so it never steps back into another layer's settings. Double-click a slider to reset it.",
+  "notes_ko": "설정 되돌리기가 레이어별로 따로 기록돼서, 다른 레이어의 설정까지 되돌아가지 않아요. 슬라이더 더블클릭 초기화 포함.",
+  "notes_ja": "設定の取り消しがレイヤーごとに記録され、他のレイヤーの設定まで戻らなくなりました。スライダーのダブルクリック初期化を含みます。",
+  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.4.8.ccx",
   "page": "https://from-ttraw.github.io/ttraw-grain/"
 }
