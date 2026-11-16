@@ -159,11 +159,12 @@
   .seg label { position: relative; }
   .seg input { position: absolute; opacity: 0; inset: 0; }
   .seg span {
-    display: block; text-align: center; padding: 10px 4px; border-radius: 10px; cursor: pointer; font-size: 14px;
+    display: flex; align-items: center; justify-content: center; height: 40px; text-align: center; padding: 0 4px; border-radius: 10px; cursor: pointer; font-size: 14px;
     background: rgba(255,255,255,0.07); color: var(--muted);
   }
   .seg input:checked + span { background: var(--fg); color: var(--bg); font-weight: 600; }
   .seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .seg span.two { white-space: pre-line; font-family: var(--font-body); font-size: 12px; line-height: 1.15; }
   .seg.mono span { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
   /* save fallback */
@@ -233,9 +234,10 @@
         <label><input type="radio" name="iso" id="iso100" value="100"><span>100</span></label>
         <label><input type="radio" name="iso" id="iso200" value="200"><span>200</span></label>
         <label><input type="radio" name="iso" id="iso400" value="400" checked><span>400</span></label>
-        <label><input type="radio" name="iso" id="isoHalf" value="half"><span data-i18n="frame.half">Half</span></label>
+        <label><input type="radio" name="iso" id="isoHalf" value="half"><span class="two" data-i18n="frame.two">Half
+frame</span></label>
       </div>
-      <div class="hint" data-i18n="iso.sub">Higher ISO, stronger grain with more colour. Half is half-frame grain.</div>
+      <div class="hint" data-i18n="iso.sub">Higher ISO, stronger grain with more colour.</div>
     </div>
     <div class="pane" data-pane="color" role="tabpanel" hidden>
       <div class="pane-head"><span data-i18n="color.head">Grain color</span></div>
@@ -1109,9 +1111,9 @@ self.onmessage = (e) => {
     en: { undo: "Undo (previous settings)", redo: "Redo", open: "Open photo", compare: "Hold to see original", save: "Save", "save.tip": "Save full-size JPEG", fit: "Fit", sample: "Sample photo", original: "Original",
       amount: "Amount", iso: "ISO", color: "Color", frame: "Frame", glow: "Glow", soft: "Soft",
       "amount.head": "Grain amount", "amount.hint": "100 matches the measured film. Double-tap to reset.",
-      "iso.head": "Film speed", "iso.sub": "Higher ISO, stronger grain with more colour. Half is half-frame grain.",
+      "iso.head": "Film speed", "iso.sub": "Higher ISO, stronger grain with more colour.",
       "color.head": "Grain color", "color.sub": "Color negative or black and white", "color.color": "Color", "color.bw": "B&W",
-      "frame.head": "Frame size", "frame.sub": "Half frame enlarges the grain", "frame.full": "Full", "frame.half": "Half",
+      "frame.head": "Frame size", "frame.sub": "Half frame enlarges the grain", "frame.full": "Full", "frame.half": "Half", "frame.two": "Half\nframe",
       "glow.hint": "Highlights bloom outward with a faint warm halo. Double-tap to reset.",
       "soft.hint": "Takes the edge off digital crispness. Double-tap to reset.",
       "result.hint": "Long-press the image (phone) or right-click it (computer) to save it.", close: "Close",
@@ -1126,9 +1128,9 @@ self.onmessage = (e) => {
     ko: { undo: "이전 설정으로 되돌리기", redo: "다시 실행", open: "사진 열기", compare: "누르고 있으면 원본", save: "저장", "save.tip": "원본 크기 JPEG로 저장", fit: "전체", sample: "샘플 사진", original: "원본",
       amount: "양", iso: "감도", color: "색", frame: "프레임", glow: "글로우", soft: "소프트",
       "amount.head": "그레인 양", "amount.hint": "100이 실측 필름과 같은 세기예요. 두 번 누르면 처음 값으로 돌아가요.",
-      "iso.head": "필름 감도", "iso.sub": "감도가 높을수록 그레인이 진하고 색 얼룩이 많아요. 하프는 하프 프레임 그레인이에요.",
+      "iso.head": "필름 감도", "iso.sub": "감도가 높을수록 그레인이 진하고 색 얼룩이 많아요.",
       "color.head": "그레인 색", "color.sub": "컬러 네거티브 또는 흑백", "color.color": "컬러", "color.bw": "흑백",
-      "frame.head": "프레임 크기", "frame.sub": "하프 프레임은 입자가 더 커요", "frame.full": "풀", "frame.half": "하프",
+      "frame.head": "프레임 크기", "frame.sub": "하프 프레임은 입자가 더 커요", "frame.full": "풀", "frame.half": "하프", "frame.two": "하프\n프레임",
       "glow.hint": "밝은 부분이 따뜻한 빛으로 은은하게 번져요. 두 번 누르면 0으로 돌아가요.",
       "soft.hint": "디지털 특유의 날카로움을 덜어줘요. 두 번 누르면 0으로 돌아가요.",
       "result.hint": "사진을 길게 누르거나(휴대폰) 우클릭해서(컴퓨터) 저장하세요.", close: "닫기",
@@ -1143,9 +1145,9 @@ self.onmessage = (e) => {
     ja: { undo: "前の設定に戻す", redo: "やり直す", open: "写真を開く", compare: "押している間は元画像", save: "保存", "save.tip": "元のサイズでJPEG保存", fit: "全体", sample: "サンプル写真", original: "元画像",
       amount: "量", iso: "感度", color: "色", frame: "フレーム", glow: "グロー", soft: "ソフト",
       "amount.head": "グレインの量", "amount.hint": "100が実測フィルムと同じ強さです。ダブルタップで初期値に戻ります。",
-      "iso.head": "フィルム感度", "iso.sub": "感度が高いほど粒子が強く、色ノイズが増えます。ハーフはハーフ判の粒子です",
+      "iso.head": "フィルム感度", "iso.sub": "感度が高いほど粒子が強く、色ノイズが増えます。",
       "color.head": "グレインの色", "color.sub": "カラーネガまたはモノクロ", "color.color": "カラー", "color.bw": "モノクロ",
-      "frame.head": "フレームサイズ", "frame.sub": "ハーフフレームは粒子が大きくなります", "frame.full": "フル", "frame.half": "ハーフ",
+      "frame.head": "フレームサイズ", "frame.sub": "ハーフフレームは粒子が大きくなります", "frame.full": "フル", "frame.half": "ハーフ", "frame.two": "ハーフ\nフレーム",
       "glow.hint": "明るい部分が暖かい光でふんわりにじみます。ダブルタップで0に戻ります。",
       "soft.hint": "デジタル特有のシャープさを抑えます。ダブルタップで0に戻ります。",
       "result.hint": "画像を長押し（スマホ）または右クリック（パソコン）で保存してください。", close: "閉じる",
