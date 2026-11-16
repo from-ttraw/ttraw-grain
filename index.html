@@ -72,7 +72,7 @@
     pointer-events: none;
   }
   .top > * { pointer-events: auto; }
-  .brand { display: flex; flex-direction: column; min-width: 0; text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
+  .brand { display: flex; flex-direction: column; flex: 0 0 auto; text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
   .brand b { font-size: 16px; font-weight: 600; letter-spacing: 0.01em; }
   .brand a { color: var(--fg); opacity: 0.8; font-size: 12px; text-decoration: none; }
   .brand a:hover { color: var(--fg); }
@@ -98,7 +98,11 @@
   }
   .chips > .chip:not(.label-chip) { flex: 0 0 auto; white-space: nowrap; }
   body:has(#viewer.zoomed) .chips { max-width: calc(100% - 200px); } /* the mini map sits on the right while zoomed */
-  body:has(#viewer.zoomed) #badge { display: none; } /* no room for the file name beside the mini map: it returns at Fit */
+  /* file name in the free space of the top bar, beside the open button */
+  .fileinfo { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-end; text-align: right;
+    font-size: 12px; line-height: 1.3; color: var(--fg); opacity: 0.85; text-shadow: 0 1px 6px rgba(0,0,0,0.7); pointer-events: none; }
+  .fileinfo b, .fileinfo small { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+  .fileinfo small { font-family: var(--font-mono); font-size: 11px; opacity: 0.8; }
   .chip {
     height: 28px; padding: 0 10px; border-radius: 14px; border: 0; background: var(--glass); color: var(--fg);
     font-family: var(--font-mono); font-size: 12px; cursor: pointer; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
@@ -193,6 +197,7 @@
       <b>ttraw Grain</b>
       <a href="https://www.instagram.com/from_ttraw/" target="_blank" rel="noopener">@from_ttraw</a>
     </div>
+    <div class="fileinfo"><b id="fname" data-i18n="sample">Sample photo</b><small id="fsize"></small></div>
     <div class="actions">
       <label class="icon" data-i18n-title="open" data-i18n-aria="open" title="Open photo" aria-label="Open photo">
         <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>
@@ -213,7 +218,6 @@
     <button class="chip icon-chip" id="undo" type="button" disabled data-i18n-title="undo" data-i18n-aria="undo" title="Undo" aria-label="Undo"><svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12h-2" transform="translate(0 -6)"/></svg></button>
     <button class="chip icon-chip" id="redo" type="button" disabled data-i18n-title="redo" data-i18n-aria="redo" title="Redo" aria-label="Redo"><svg viewBox="0 0 24 24"><path d="M15 7l5 5-5 5"/><path d="M20 12H10a6 6 0 0 0 0 12h2" transform="translate(0 -6)"/></svg></button>
     <button class="chip icon-chip" id="reload" type="button" data-i18n-title="reload" data-i18n-aria="reload" title="Reload app" aria-label="Reload app"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
-    <span class="chip label-chip" id="badge" data-i18n="sample">Sample photo</span>
   </div>
   <canvas id="mini" hidden data-i18n-aria="a.mini" aria-label="Whole photo. Tap to move around."></canvas>
   <div class="before-tag" id="beforeTag" hidden data-i18n="original">Original</div>
@@ -1253,7 +1257,8 @@ self.onmessage = (e) => {
     st.W = canvas.width; st.H = canvas.height; st.name = name; st.sample = sample; st.full = full || null;
     st.seed = photoSeed(name, full ? full.W : st.W, full ? full.H : st.H); // one grain pattern per photo (from its original size)
     st.base = null; st.glow = null; buildMips(); setFit();
-    $("badge").textContent = sample ? t("sample") : `${name} · ${st.full ? st.full.W : st.W}×${st.full ? st.full.H : st.H}`;
+    $("fname").textContent = sample ? t("sample") : name;
+    $("fsize").textContent = sample ? "" : `${st.full ? st.full.W : st.W}×${st.full ? st.full.H : st.H}`;
     setStatus(scaledFrom ? t("st.resized", { w: st.W, h: st.H, o: scaledFrom }) : "");
     schedule(true);
   }
