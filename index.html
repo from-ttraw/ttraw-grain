@@ -1674,7 +1674,13 @@ self.onmessage = (e) => {
   const redo = () => { if (hpos < hist.length - 1) { hpos++; restore(hist[hpos]); updUndo(); } };
   $("undo").addEventListener("click", undo);
   // home-screen apps have no reload button: fetch the page fresh (the query skips any cached copy)
-  $("reload").addEventListener("click", () => { location.replace(location.pathname + "?r=" + Date.now()); });
+  // The fetch with cache "reload" also replaces the stored copy of the plain address, which is what the home-screen
+  // icon opens next time, so the update sticks after the app is closed.
+  $("reload").addEventListener("click", async () => {
+    const path = location.pathname;
+    try { await fetch(path, { cache: "reload" }); } catch (e) { /* offline: just reload */ }
+    location.replace(path + "?r=" + Date.now());
+  });
   $("redo").addEventListener("click", redo);
   const sheetEl = $("sheet");
   sheetEl.addEventListener("change", () => setTimeout(commit, 0));
