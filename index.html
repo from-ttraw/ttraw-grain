@@ -147,6 +147,10 @@
     padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px));
     min-height: 92px;
   }
+  /* all panes share one cell, so the sheet keeps the height of the tallest and never jumps between tabs */
+  .panes { display: grid; }
+  .panes > .pane { grid-area: 1 / 1; }
+  .panes > .pane[hidden] { display: flex !important; visibility: hidden; pointer-events: none; }
   .pane-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 12px; }
   .pane-head span { font-size: 15px; white-space: nowrap; }
   .pane-head small { color: var(--muted); font-size: 12px; flex: 1 1 100%; } /* the explanation sits under the title, never squeezing it */
@@ -222,6 +226,7 @@
       <button class="tab" role="tab" type="button" data-tab="glow" aria-selected="false"><b data-i18n="glow">Glow</b><small id="tGlow">0</small></button>
       <button class="tab" role="tab" type="button" data-tab="soft" aria-selected="false"><b data-i18n="soft">Soft</b><small id="tSoft">0</small></button>
     </nav>
+    <div class="panes">
 
     <div class="pane" data-pane="amount" role="tabpanel">
       <div class="pane-head"><span data-i18n="amount.head">Grain amount</span><input class="value" type="number" id="amountNum" min="0" max="150" step="1" value="100" data-i18n-aria="amount" aria-label="Amount value"></div>
@@ -256,6 +261,7 @@ frame</span></label>
       <div class="pane-head"><span data-i18n="soft">Soft</span><input class="value" type="number" id="softNum" min="0" max="100" step="1" value="0" aria-label="Soft value"></div>
       <input type="range" id="soft" min="0" max="100" step="1" value="0" aria-label="Soft">
       <div class="hint" data-i18n="soft.hint">Takes the edge off digital crispness. Double-tap to reset.</div>
+    </div>
     </div>
   </section>
 
