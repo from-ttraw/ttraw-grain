@@ -41,6 +41,11 @@
   html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); overflow: hidden; overscroll-behavior: none; }
   /* iOS home-screen app: the page itself must never scroll, or taps land beside what is drawn */
   html, body { position: fixed; inset: 0; }
+  /* iOS 26 home-screen apps report a viewport shorter than the screen (gap at the bottom, taps off target).
+     There the layout takes the real screen height (--appH, set by script; 100vh as a CSS fallback). */
+  @media (display-mode: standalone) {
+    html, body, .app { bottom: auto; height: var(--appH, 100vh); }
+  }
   /* an app, not a document: holding a button must not start text selection or the iOS callout */
   body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   input[type="number"] { -webkit-user-select: text; user-select: text; }
@@ -1087,6 +1092,14 @@ self.onmessage = (e) => {
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
+  const STANDALONE = navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
+  function fitScreen() {
+    if (!STANDALONE) return;
+    const portrait = innerHeight >= innerWidth, full = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
+    document.documentElement.style.setProperty("--appH", Math.max(innerHeight, full) + "px");
+  }
+  fitScreen();
+  addEventListener("orientationchange", () => setTimeout(fitScreen, 300));
   /* ---------- language: follows the phone / browser language (Korean, Japanese, otherwise English) ---------- */
   const I18N = {
     en: { undo: "Undo (previous settings)", redo: "Redo", open: "Open photo", compare: "Hold to see original", save: "Save", "save.tip": "Save full-size JPEG", fit: "Fit", sample: "Sample photo", original: "Original",
@@ -1664,7 +1677,7 @@ self.onmessage = (e) => {
   });
 
   let resizeT = 0;
-  window.addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (!st.src) return; if (V.fit) setFit(); else clampPan(); schedule(true); }, 80); });
+  window.addEventListener("resize", () => { fitScreen(); clearTimeout(resizeT); resizeT = setTimeout(() => { if (!st.src) return; if (V.fit) setFit(); else clampPan(); schedule(true); }, 80); });
 
   /* ---------- save ---------- */
   let downloads = null;
