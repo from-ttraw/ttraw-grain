@@ -380,6 +380,52 @@ function processStrip(src, W, h, y0, comp, maxVal, S, x0 = 0) {
 // color: three fields n0 + k*n_c (shared luma grain plus a little independent dye noise), B&W: one field n0.
 // Blurring is linear, so the raw noise is mixed first and only 3 fields (not 4) get blurred.
 // Depends only on ISO/frame/B&W and seed, not on Amount, so the preview can cache it while the Amount slider moves.
+// Each channel's own grain when its blur is large: white noise on a half-size grid (its own hash, so strips and crops
+// still line up), blurred with half the sigma, then enlarged ×2 bilinearly. Every full-size pixel sits at the same
+// (¼, ¾) offsets between grid points, so the enlargement lowers the variance by one fixed factor, corrected exactly.
+function ownHalf(W, h, y0, x0, S) {
+  const k = gaussKernel(Math.max(0.3, S.blurO / 2)), r = k.r, kc = k.k[r];
+  const ks = new Float32Array(r + 1); for (let i = 1; i <= r; i++) ks[i] = k.k[r + i];
+  const gx0 = Math.floor(x0 / 2) - 1, gy0 = Math.floor(y0 / 2) - 1;            // grid cells covering the region (+1 each side)
+  const GW = Math.floor((x0 + W - 1) / 2) + 2 - gx0, GH = Math.floor((y0 + h - 1) / 2) + 2 - gy0;
+  const PW = GW + 2 * r, PH = GH + 2 * r, raw = new Float32Array(PW * PH), tmp = new Float32Array(GW * PH), g = new Float32Array(GW * GH);
+  // variance after bilinear ×2 with weights (3/4, 1/4): per axis 9/16 + 1/16 + 2·3/16·ρ1, ρ1 = neighbour correlation of the blurred grid
+  let num = 0, den = 0; for (let i = -r; i < r; i++) { num += k.k[r + i] * k.k[r + i + 1]; } for (let i = -r; i <= r; i++) den += k.k[r + i] * k.k[r + i];
+  const rho = num / den, axis = 10 / 16 + (6 / 16) * rho, fix = 1 / axis;      // 2-D: axis² in variance → 1/axis in sigma
+  const unit = (k.norm / IH_SD) * fix;
+  return (ch, gain) => {
+    const cPart = Math.imul(ch + 101, 1274126177) ^ S.seed;                   // grid noise: separate stream from full-size noise
+    for (let py = 0; py < PH; py++) {
+      const rowPart = Math.imul(gy0 + py - r, 668265263) ^ cPart, ro = py * PW;
+      for (let px = 0; px < PW; px++) {
+        let v = Math.imul(gx0 + px - r, 374761393) ^ rowPart;
+        v = Math.imul(v ^ (v >>> 15), 2246822519); v = Math.imul(v ^ (v >>> 13), 3266489917); v = (v ^ (v >>> 16)) >>> 0;
+        raw[ro + px] = (v & 255) + ((v >>> 8) & 255) + ((v >>> 16) & 255) + (v >>> 24) - IH_MEAN;
+      }
+    }
+    for (let py = 0; py < PH; py++) {
+      const ro = py * PW + r, to = py * GW;
+      for (let x = 0; x < GW; x++) { const c = ro + x; let s = kc * raw[c]; for (let i = 1; i <= r; i++) s += ks[i] * (raw[c - i] + raw[c + i]); tmp[to + x] = s; }
+    }
+    const u = unit * gain;
+    for (let y = 0; y < GH; y++) {
+      const co = (y + r) * GW, oo = y * GW;
+      for (let x = 0; x < GW; x++) { const c = co + x; let s = kc * tmp[c]; for (let i = 1; i <= r; i++) s += ks[i] * (tmp[c - i * GW] + tmp[c + i * GW]); g[oo + x] = s * u; }
+    }
+    // enlarge: full-size pixel X sits at grid position X/2 − 1/4
+    const out = new Float32Array(W * h);
+    for (let y = 0; y < h; y++) {
+      const Y = y0 + y, gy = (Y >> 1) - gy0, fy = (Y & 1) ? 0.25 : 0.75, j0 = (Y & 1) ? gy : gy - 1, wy0 = (Y & 1) ? 0.75 : 0.25;
+      const r0 = j0 * GW, r1 = (j0 + 1) * GW, oo = y * W;
+      for (let x = 0; x < W; x++) {
+        const X = x0 + x, gxx = (X >> 1) - gx0, i0 = (X & 1) ? gxx : gxx - 1, wx0 = (X & 1) ? 0.75 : 0.25, wx1 = 1 - wx0;
+        out[oo + x] = wy0 * (wx0 * g[r0 + i0] + wx1 * g[r0 + i0 + 1]) + (1 - wy0) * (wx0 * g[r1 + i0] + wx1 * g[r1 + i0 + 1]);
+      }
+    }
+    return out;
+  };
+}
+
 function noiseFields(W, h, y0, x0, S) {
   const R = kernelRadius(S); // raw noise margin: enough for the widest blur
   const PW = W + 2 * R, PH = h + 2 * R, NP = PW * PH;
@@ -441,16 +487,17 @@ function noiseFields(W, h, y0, x0, S) {
     let a = raw.slice(0, NP), t = new Float32Array(NP);
     // horizontal: running sum along each row
     for (const r of kern.boxes) {
-      const inv = 1 / (2 * r + 1);
+      const inv = 1 / (2 * r + 1), last = PW - 1;
       for (let y = 0; y < PH; y++) {
-        const o = y * PW;
-        let sum = 0;
-        for (let i = -r; i <= r; i++) sum += a[o + (i < 0 ? 0 : i >= PW ? PW - 1 : i)];
-        for (let x = 0; x < PW; x++) {
-          t[o + x] = sum * inv;
-          const ad = x + r + 1, sb = x - r;
-          sum += a[o + (ad >= PW ? PW - 1 : ad)] - a[o + (sb < 0 ? 0 : sb)];
-        }
+        const o = y * PW, first = a[o], end = a[o + last];
+        let sum = first * r;
+        for (let i = 0; i <= r; i++) sum += a[o + i];
+        // edges clamp; the long middle stretch runs without any bounds checks
+        let x = 0;
+        const x1 = Math.min(r, PW), x2 = Math.max(x1, PW - r - 1);
+        for (; x < x1; x++) { t[o + x] = sum * inv; sum += a[o + (x + r + 1 < PW ? x + r + 1 : last)] - first; }
+        for (; x < x2; x++) { t[o + x] = sum * inv; sum += a[o + x + r + 1] - a[o + x - r]; }
+        for (; x < PW; x++) { t[o + x] = sum * inv; sum += end - a[o + (x - r < 0 ? 0 : x - r)]; }
       }
       const sw = a; a = t; t = sw;
     }
@@ -478,12 +525,15 @@ function noiseFields(W, h, y0, x0, S) {
   if (c > 0) { const rawK = new Float32Array(NP); rawField(7, rawK); coarse = blur(rawK, S.kernC, c); }
   const addCoarse = (f) => { if (coarse) for (let i = 0; i < f.length; i++) f[i] += coarse[i]; return f; };
   if (!color) return [addCoarse(blur(raw0, S.kern, fineW))];
-  const rawC = new Float32Array(NP);
   const shared = blur(raw0, S.kern, fineW * lnorm);
   const fields = [];
+  const half = S.blurO >= 2 ? ownHalf(W, h, y0, x0, S) : null; // large colour clouds: computed at half size, enlarged
+  const rawC = half ? null : new Float32Array(NP);
   for (let ch = 1; ch <= 3; ch++) {
-    rawField(ch, rawC);
-    const gc = S.g[ch - 1], own = blur(rawC, S.kernO, fineW * lnorm * S.kc[ch - 1]);
+    const gc = S.g[ch - 1], gain = fineW * lnorm * S.kc[ch - 1];
+    let own;
+    if (half) { own = half(ch, gain); }
+    else { rawField(ch, rawC); own = blur(rawC, S.kernO, gain); }
     for (let i = 0; i < own.length; i++) own[i] += gc * shared[i];
     fields.push(addCoarse(own));
   }
