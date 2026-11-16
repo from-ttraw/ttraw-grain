@@ -538,7 +538,7 @@ const Efx = ((G) => {
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const pct = (v) => clamp01((Number(v) || 0) / 100);
 
-const GLOW = { threshold: 0.55, knee: 0.95, strength: 0.65, radiusFrac: 0.010, tint: [1.0, 0.88, 0.74] };
+const GLOW = { threshold: 0.40, knee: 0.95, strength: 0.65, radiusFrac: 0.010, tint: [1.0, 0.88, 0.74] };
 
 function efxSettings(opts, W, H) {
   const scale = Math.max(W, H) / G.SCAN_LONG_SIDE;

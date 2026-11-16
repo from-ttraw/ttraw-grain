@@ -1,8 +1,8 @@
 {
-  "version": "0.4.4",
-  "notes": "Undo / redo for panel settings (buttons next to GRAIN, ⌘Z / ⇧⌘Z). Dragging the preview no longer switches Fit/100% (or ISO, colour) when the mouse is let go over them. Includes 0.4.3: grain recalibrated on 31 film rolls, ISO 100/200/400/Half, per-photo grain pattern.",
-  "notes_ko": "패널 설정 되돌리기/다시 실행이 생겼어요(GRAIN 옆 버튼, ⌘Z / ⇧⌘Z). 프리뷰를 드래그하다 Fit/100%(ISO·컬러) 위에서 놓아도 더 이상 바뀌지 않아요. 0.4.3 내용 포함: 필름 31롤로 다시 맞춘 그레인, ISO 100/200/400/하프, 사진별 그레인 패턴.",
-  "notes_ja": "パネル設定の取り消し/やり直しを追加しました（GRAIN横のボタン、⌘Z / ⇧⌘Z）。プレビューをドラッグしてFit/100%（ISO・カラー）の上で離しても切り替わらなくなりました。0.4.3の内容を含みます：フィルム31本で再調整した粒子、ISO 100/200/400/ハーフ、写真ごとの粒子パターン。",
-  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.4.4.ccx",
+  "version": "0.4.5",
+  "notes": "Glow now starts from 40% brightness (was 55%), so bright mid-tones bloom a little too. Includes 0.4.4: settings undo/redo and the preview-drag fix.",
+  "notes_ko": "글로우가 밝기 40%부터 번지기 시작해요(이전 55%). 밝은 중간톤도 살짝 번져요. 0.4.4 내용 포함: 설정 되돌리기, 프리뷰 드래그 수정.",
+  "notes_ja": "グローが明るさ40%からにじみ始めます（以前は55%）。明るい中間調も少しにじみます。0.4.4の内容を含みます：設定の取り消し、プレビューのドラッグ修正。",
+  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.4.5.ccx",
   "page": "https://from-ttraw.github.io/ttraw-grain/"
 }
