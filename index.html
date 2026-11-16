@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="description" content="Film grain measured from real Noritsu scans, plus film glow and softness. Add it to your photos right in the browser; nothing is uploaded. By @from_ttraw.">
 <meta name="theme-color" content="#0e0f10">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -39,6 +39,8 @@
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
   html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); overflow: hidden; overscroll-behavior: none; }
+  /* iOS home-screen app: the page itself must never scroll, or taps land beside what is drawn */
+  html, body { position: fixed; inset: 0; }
   body { font-family: var(--font-body); font-size: 14px; line-height: 1.4; -webkit-tap-highlight-color: transparent; }
 
   .app { position: fixed; inset: 0; overflow: hidden; }
@@ -137,7 +139,7 @@
   .pane-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 12px; }
   .pane-head span { font-size: 15px; white-space: nowrap; }
   .pane-head small { color: var(--muted); font-size: 12px; flex: 1 1 100%; } /* the explanation sits under the title, never squeezing it */
-  .value { width: 64px; font: inherit; font-family: var(--font-mono); font-size: 15px; font-variant-numeric: tabular-nums; color: var(--fg);
+  .value { width: 64px; font: inherit; font-family: var(--font-mono); font-size: 16px; font-variant-numeric: tabular-nums; color: var(--fg);
     background: transparent; border: 0; border-bottom: 1px solid var(--line); text-align: right; padding: 2px 0; }
   input[type="range"] { width: 100%; accent-color: var(--fg); height: 28px; margin: 0; }
   .hint { color: var(--muted); font-size: 12px; }
@@ -1642,6 +1644,17 @@ self.onmessage = (e) => {
   window.addEventListener("keydown", (e) => {
     if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "z" || /^(INPUT|TEXTAREA)$/.test(document.activeElement && document.activeElement.tagName) && document.activeElement.type === "number") return;
     e.preventDefault(); if (e.shiftKey) redo(); else undo();
+  });
+
+  // iOS: the keyboard of a number field (or a focus zoom) can leave the page scrolled; the screen then shows one place
+  // and taps hit another, so the sheet looks frozen. Snap the page back whenever that happens.
+  const unshift = () => { if (window.scrollX || window.scrollY) window.scrollTo(0, 0); };
+  window.addEventListener("scroll", unshift, { passive: true });
+  document.addEventListener("focusout", () => setTimeout(unshift, 60));
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", () => setTimeout(unshift, 60));
+  document.querySelectorAll(".value").forEach((el) => {
+    el.setAttribute("inputmode", "numeric");
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter") el.blur(); });
   });
 
   let resizeT = 0;
