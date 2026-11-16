@@ -1638,7 +1638,21 @@ self.onmessage = (e) => {
   }));
   const amount = $("amount"), amountNum = $("amountNum");
   amount.addEventListener("input", () => { amountNum.value = amount.value; schedule(false); });
-  amount.addEventListener("dblclick", () => { amount.value = 100; amountNum.value = 100; schedule(false); });
+  // double-tap anywhere on a slider resets it. Phones send no dblclick on sliders, so taps are counted by hand:
+  // two short taps (no drag) within 350 ms on the same slider.
+  function onDoubleTap(el, fn) {
+    let last = 0, down = null;
+    el.addEventListener("pointerdown", (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+    el.addEventListener("pointerup", (e) => {
+      if (!down) return;
+      const now = performance.now(), tap = now - down.t < 300 && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 12;
+      down = null;
+      if (!tap) { last = 0; return; }
+      if (now - last < 350) { last = 0; fn(); } else last = now;
+    });
+    el.addEventListener("dblclick", (e) => { e.preventDefault(); });   // mouse: the counted taps above already handle it
+  }
+  onDoubleTap(amount, () => { amount.value = 100; amountNum.value = 100; schedule(false); setTimeout(commit, 0); });
   amountNum.addEventListener("change", () => {
     const v = Math.max(0, Math.min(150, Math.round(Number(amountNum.value) || 0)));
     amountNum.value = v; amount.value = v; schedule(false);
@@ -1647,7 +1661,7 @@ self.onmessage = (e) => {
   for (const id of ["glow", "soft"]) {
     const r = $(id), n = $(id + "Num");
     r.addEventListener("input", () => { n.value = r.value; efxInput(); });
-    r.addEventListener("dblclick", () => { r.value = 0; n.value = 0; schedule(false); });
+    onDoubleTap(r, () => { r.value = 0; n.value = 0; schedule(false); setTimeout(commit, 0); });
     n.addEventListener("change", () => { const v = Math.max(0, Math.min(100, Math.round(Number(n.value) || 0))); n.value = v; r.value = v; schedule(false); });
   }
   /* ---------- undo / redo of settings ---------- */
@@ -1684,7 +1698,6 @@ self.onmessage = (e) => {
   $("redo").addEventListener("click", redo);
   const sheetEl = $("sheet");
   sheetEl.addEventListener("change", () => setTimeout(commit, 0));
-  sheetEl.addEventListener("dblclick", () => setTimeout(commit, 0));
   window.addEventListener("keydown", (e) => {
     if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "z" || /^(INPUT|TEXTAREA)$/.test(document.activeElement && document.activeElement.tagName) && document.activeElement.type === "number") return;
     e.preventDefault(); if (e.shiftKey) redo(); else undo();
