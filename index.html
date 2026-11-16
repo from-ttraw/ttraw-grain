@@ -41,6 +41,9 @@
   html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); overflow: hidden; overscroll-behavior: none; }
   /* iOS home-screen app: the page itself must never scroll, or taps land beside what is drawn */
   html, body { position: fixed; inset: 0; }
+  /* an app, not a document: holding a button must not start text selection or the iOS callout */
+  body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  input[type="number"] { -webkit-user-select: text; user-select: text; }
   body { font-family: var(--font-body); font-size: 14px; line-height: 1.4; -webkit-tap-highlight-color: transparent; }
 
   .app { position: fixed; inset: 0; overflow: hidden; }
@@ -1521,6 +1524,8 @@ self.onmessage = (e) => {
   ["pointerup", "pointercancel", "lostpointercapture"].forEach((ev) => cmp.addEventListener(ev, () => setBefore(false)));
   cmp.addEventListener("keydown", (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); setBefore(true); } });
   cmp.addEventListener("keyup", () => setBefore(false));
+  document.addEventListener("contextmenu", (e) => { if (!e.target.closest(".result")) e.preventDefault(); }); // keep long-press save on the result image
+  document.addEventListener("selectstart", (e) => { if (!e.target.closest || !e.target.closest("input")) e.preventDefault(); });
 
   /* ---------- gestures on the photo: drag, pinch, wheel, double-tap, press and hold for the original ---------- */
   const pts = new Map();
