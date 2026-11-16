@@ -44,6 +44,7 @@
   /* an app, not a document: holding a button must not start text selection or the iOS callout */
   body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   input[type="number"] { -webkit-user-select: text; user-select: text; }
+  .result-card img { -webkit-touch-callout: default; } /* long-press to save the result must still work */
   body { font-family: var(--font-body); font-size: 14px; line-height: 1.4; -webkit-tap-highlight-color: transparent; }
 
   .app { position: fixed; inset: 0; overflow: hidden; }
