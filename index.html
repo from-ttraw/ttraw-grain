@@ -1095,12 +1095,16 @@ self.onmessage = (e) => {
 (() => {
   const $ = (id) => document.getElementById(id);
   const STANDALONE = navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
+  const drawnH = {};
   function fitScreen() {
     if (!STANDALONE) return;
     const portrait = innerHeight >= innerWidth, full = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
+    // iOS 26 first reports the short (drawn) height; once the page is made full height it reports the full one,
+    // so the smallest height seen in each orientation is what iOS actually draws
+    const o = portrait ? "p" : "l"; drawnH[o] = Math.min(drawnH[o] || Infinity, innerHeight);
     const h = Math.max(innerHeight, full), root = document.documentElement.style;
     root.setProperty("--appH", h + "px");
-    root.setProperty("--gapB", Math.max(0, h - innerHeight) + "px"); // iOS 26: taps use the full screen, drawing stops at innerHeight
+    root.setProperty("--gapB", Math.max(0, Math.min(80, h - drawnH[o])) + "px");
   }
   fitScreen();
   addEventListener("orientationchange", () => setTimeout(fitScreen, 300));
