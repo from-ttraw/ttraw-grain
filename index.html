@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="ttraw-build" content="1117-0511">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="description" content="Film grain measured from real Noritsu scans, plus film glow and softness. Add it to your photos right in the browser; nothing is uploaded. By @from_ttraw.">
 <meta name="theme-color" content="#0e0f10">
@@ -1687,6 +1688,23 @@ self.onmessage = (e) => {
     el.setAttribute("inputmode", "numeric");
     el.addEventListener("keydown", (e) => { if (e.key === "Enter") el.blur(); });
   });
+
+  // Updates without reinstalling: on launch and whenever the app comes back to the front, ask the site (bypassing
+  // every cache) for its build stamp; if it is newer than this page, reload once. One small request, no reload otherwise.
+  const myBuild = document.querySelector('meta[name="ttraw-build"]')?.content || "";
+  let checking = false;
+  async function checkUpdate() {
+    if (checking || st.busy || !myBuild || location.protocol !== "https:") return;
+    checking = true;
+    try {
+      const html = await (await fetch(location.pathname + "?u=" + Date.now(), { cache: "no-store" })).text();
+      const b = (html.match(/name="ttraw-build" content="([^"]+)"/) || [])[1];
+      if (b && b !== myBuild && !st.busy) location.replace(location.pathname + "?v=" + encodeURIComponent(b));
+    } catch (e) { /* offline: keep the current version */ }
+    checking = false;
+  }
+  setTimeout(checkUpdate, 1500);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkUpdate(); });
 
   let resizeT = 0;
   window.addEventListener("resize", () => { fitScreen(); clearTimeout(resizeT); resizeT = setTimeout(() => { if (!st.src) return; if (V.fit) setFit(); else clampPan(); schedule(true); }, 80); });
