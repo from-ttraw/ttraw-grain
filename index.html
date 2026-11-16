@@ -217,7 +217,7 @@
     <button class="chip" id="z100" type="button">100%</button>
     <button class="chip icon-chip" id="undo" type="button" disabled data-i18n-title="undo" data-i18n-aria="undo" title="Undo" aria-label="Undo"><svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12h-2" transform="translate(0 -6)"/></svg></button>
     <button class="chip icon-chip" id="redo" type="button" disabled data-i18n-title="redo" data-i18n-aria="redo" title="Redo" aria-label="Redo"><svg viewBox="0 0 24 24"><path d="M15 7l5 5-5 5"/><path d="M20 12H10a6 6 0 0 0 0 12h2" transform="translate(0 -6)"/></svg></button>
-    <button class="chip icon-chip" id="reload" type="button" data-i18n-title="reload" data-i18n-aria="reload" title="Reload app" aria-label="Reload app"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
+    <button class="chip icon-chip" id="reload" type="button" data-i18n-title="reload" data-i18n-aria="reload" title="Reset settings" aria-label="Reset settings"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.34-5.66"/><path d="M4 4v5h5"/></svg></button>
   </div>
   <canvas id="mini" hidden data-i18n-aria="a.mini" aria-label="Whole photo. Tap to move around."></canvas>
   <div class="before-tag" id="beforeTag" hidden data-i18n="original">Original</div>
@@ -1124,7 +1124,7 @@ self.onmessage = (e) => {
   addEventListener("orientationchange", () => setTimeout(fitScreen, 300));
   /* ---------- language: follows the phone / browser language (Korean, Japanese, otherwise English) ---------- */
   const I18N = {
-    en: { reload: "Reload app (latest version)", undo: "Undo (previous settings)", redo: "Redo", open: "Open photo", compare: "Hold to see original", save: "Save", "save.tip": "Save full-size JPEG", fit: "Fit", sample: "Sample photo", original: "Original",
+    en: { reload: "Reset settings", undo: "Undo (previous settings)", redo: "Redo", open: "Open photo", compare: "Hold to see original", save: "Save", "save.tip": "Save full-size JPEG", fit: "Fit", sample: "Sample photo", original: "Original",
       amount: "Amount", iso: "ISO", color: "Color", frame: "Frame", glow: "Glow", soft: "Soft",
       "amount.head": "Grain amount", "amount.hint": "100 matches the measured film. Double-tap to reset.",
       "iso.head": "Film speed", "iso.sub": "Higher ISO, stronger grain with more colour.",
@@ -1141,7 +1141,7 @@ self.onmessage = (e) => {
       "st.adding": "Adding grain to {w} × {h} px…", "st.encoding": "Encoding JPEG…",
       "st.saved": "Saved {f} ({s} s).", "st.done": "Done ({s} s).", "st.cancelled": "Save cancelled.",
       "st.failed": "Couldn't finish this photo. It may be too large for this device; try a smaller copy." },
-    ko: { reload: "새로고침 (최신 버전)", undo: "이전 설정으로 되돌리기", redo: "다시 실행", open: "사진 열기", compare: "누르고 있으면 원본", save: "저장", "save.tip": "원본 크기 JPEG로 저장", fit: "전체", sample: "샘플 사진", original: "원본",
+    ko: { reload: "설정 초기화", undo: "이전 설정으로 되돌리기", redo: "다시 실행", open: "사진 열기", compare: "누르고 있으면 원본", save: "저장", "save.tip": "원본 크기 JPEG로 저장", fit: "전체", sample: "샘플 사진", original: "원본",
       amount: "양", iso: "감도", color: "색", frame: "프레임", glow: "글로우", soft: "소프트",
       "amount.head": "그레인 양", "amount.hint": "100이 실측 필름과 같은 세기예요. 두 번 누르면 처음 값으로 돌아가요.",
       "iso.head": "필름 감도", "iso.sub": "감도가 높을수록 그레인이 진하고 색 얼룩이 많아요.",
@@ -1158,7 +1158,7 @@ self.onmessage = (e) => {
       "st.adding": "{w} × {h} px에 그레인 넣는 중…", "st.encoding": "JPEG로 저장하는 중…",
       "st.saved": "{f} 저장했어요 ({s}초).", "st.done": "완료 ({s}초).", "st.cancelled": "저장을 취소했어요.",
       "st.failed": "이 사진을 처리하지 못했어요. 이 기기에서 너무 클 수 있으니 더 작은 사진으로 해보세요." },
-    ja: { reload: "再読み込み（最新版）", undo: "前の設定に戻す", redo: "やり直す", open: "写真を開く", compare: "押している間は元画像", save: "保存", "save.tip": "元のサイズでJPEG保存", fit: "全体", sample: "サンプル写真", original: "元画像",
+    ja: { reload: "設定をリセット", undo: "前の設定に戻す", redo: "やり直す", open: "写真を開く", compare: "押している間は元画像", save: "保存", "save.tip": "元のサイズでJPEG保存", fit: "全体", sample: "サンプル写真", original: "元画像",
       amount: "量", iso: "感度", color: "色", frame: "フレーム", glow: "グロー", soft: "ソフト",
       "amount.head": "グレインの量", "amount.hint": "100が実測フィルムと同じ強さです。ダブルタップで初期値に戻ります。",
       "iso.head": "フィルム感度", "iso.sub": "感度が高いほど粒子が強く、色ノイズが増えます。",
@@ -1694,12 +1694,13 @@ self.onmessage = (e) => {
   const redo = () => { if (hpos < hist.length - 1) { hpos++; restore(hist[hpos]); updUndo(); } };
   $("undo").addEventListener("click", undo);
   // home-screen apps have no reload button: fetch the page fresh (the query skips any cached copy)
-  // The fetch with cache "reload" also replaces the stored copy of the plain address, which is what the home-screen
-  // icon opens next time, so the update sticks after the app is closed.
-  $("reload").addEventListener("click", async () => {
-    const path = location.pathname;
-    try { await fetch(path, { cache: "reload" }); } catch (e) { /* offline: just reload */ }
-    location.replace(path + "?r=" + Date.now());
+  // Reset: every setting back to its default (the photo stays; one undo step brings the settings back).
+  // It also fetches the page fresh in the background, replacing the stored copy the home-screen icon opens,
+  // so the next launch is the latest version.
+  const DEFAULTS = hist[0];
+  $("reload").addEventListener("click", () => {
+    restore(DEFAULTS); commit();
+    fetch(location.pathname, { cache: "reload" }).catch(() => {});
   });
   $("redo").addEventListener("click", redo);
   const sheetEl = $("sheet");
