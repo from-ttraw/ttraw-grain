@@ -221,20 +221,20 @@
 
   <section class="sheet" id="sheet" data-i18n-aria="a.sheet" aria-label="Grain settings">
     <nav class="tabs" role="tablist">
-      <button class="tab" role="tab" type="button" data-tab="iso" aria-selected="false"><b data-i18n="iso">ISO</b><small id="tIso">400</small></button>
-      <button class="tab" role="tab" type="button" data-tab="amount" aria-selected="true"><b data-i18n="amount">Amount</b><small id="tAmount">100</small></button>
+      <button class="tab" role="tab" type="button" data-tab="iso" aria-selected="true"><b data-i18n="iso">ISO</b><small id="tIso">400</small></button>
+      <button class="tab" role="tab" type="button" data-tab="amount" aria-selected="false"><b data-i18n="amount">Amount</b><small id="tAmount">100</small></button>
       <button class="tab" role="tab" type="button" data-tab="color" aria-selected="false"><b data-i18n="color">Color</b><small id="tColor">Color</small></button>
       <button class="tab" role="tab" type="button" data-tab="glow" aria-selected="false"><b data-i18n="glow">Glow</b><small id="tGlow">0</small></button>
       <button class="tab" role="tab" type="button" data-tab="soft" aria-selected="false"><b data-i18n="soft">Soft</b><small id="tSoft">0</small></button>
     </nav>
     <div class="panes">
 
-    <div class="pane" data-pane="amount" role="tabpanel">
+    <div class="pane" data-pane="amount" role="tabpanel" hidden>
       <div class="pane-head"><span data-i18n="amount.head">Grain amount</span><input class="value" type="number" id="amountNum" min="0" max="150" step="1" value="100" data-i18n-aria="amount" aria-label="Amount value"></div>
       <input type="range" id="amount" min="0" max="150" step="1" value="100" data-i18n-aria="amount" aria-label="Amount">
       <div class="hint" data-i18n="amount.hint">100 matches the measured film. Double-tap to reset.</div>
     </div>
-    <div class="pane" data-pane="iso" role="tabpanel" hidden>
+    <div class="pane" data-pane="iso" role="tabpanel">
       <div class="pane-head"><span data-i18n="iso.head">Film speed</span></div>
       <div class="seg mono" role="radiogroup" aria-label="Film speed">
         <label><input type="radio" name="iso" id="iso100" value="100"><span>100</span></label>
