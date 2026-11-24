@@ -201,13 +201,13 @@
     <div class="actions">
       <label class="icon" data-i18n-title="open" data-i18n-aria="open" title="Open photo" aria-label="Open photo">
         <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>
-        <input type="file" id="file" accept="image/*">
+        <input type="file" id="file" accept="image/*" multiple>
       </label>
       <button class="icon" id="compare" type="button" data-i18n-title="compare" data-i18n-aria="compare" title="Hold to see original" aria-label="Hold to see original">
         <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14"/><path d="M12 5h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-7z" fill="currentColor" stroke="none" opacity="0.35"/></svg>
       </button>
       <button class="icon save" id="save" type="button" data-i18n-title="save.tip" title="Save full-size JPEG">
-        <svg viewBox="0 0 24 24"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg><span data-i18n="save">Save</span>
+        <svg viewBox="0 0 24 24"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg><span id="saveLabel" data-i18n="save">Save</span>
       </button>
     </div>
   </header>
@@ -1133,7 +1133,7 @@ self.onmessage = (e) => {
       "glow.hint": "Highlights bloom outward with a faint warm halo. Double-tap to reset.",
       "soft.hint": "Takes the edge off digital crispness. Double-tap to reset.",
       "result.hint": "Long-press the image (phone) or right-click it (computer) to save it.", close: "Close",
-      "save.photos": "Save to Photos", download: "Download",
+      "save.photos": "Save to Photos", download: "Download", "save.all": "Save {n}", "batch.tag": "{n} photos, same settings", "st.batch": "Photo {i} of {n}…", "st.batchdone": "Saved {n} photos ({s} s).", "st.batchfail": " {m} couldn't be processed.", "batch.hint": "{n} photos are ready. Tap Save to Photos.",
       "a.view": "Photo with grain", "a.mini": "Whole photo. Tap to move around.", "a.sheet": "Grain settings",
       "st.notimage": "That file isn't an image. Open a JPEG, PNG or HEIC photo.", "st.opening": "Opening…",
       "st.cantopen": "This browser couldn't open that photo. Try a JPEG or PNG.",
@@ -1150,7 +1150,7 @@ self.onmessage = (e) => {
       "glow.hint": "밝은 부분이 따뜻한 빛으로 은은하게 번져요. 두 번 누르면 0으로 돌아가요.",
       "soft.hint": "디지털 특유의 날카로움을 덜어줘요. 두 번 누르면 0으로 돌아가요.",
       "result.hint": "사진을 길게 누르거나(휴대폰) 우클릭해서(컴퓨터) 저장하세요.", close: "닫기",
-      "save.photos": "사진에 저장", download: "다운로드",
+      "save.photos": "사진에 저장", download: "다운로드", "save.all": "{n}장 저장", "batch.tag": "{n}장 · 같은 설정으로 저장", "st.batch": "{i}/{n}장 처리 중…", "st.batchdone": "{n}장 저장했어요 ({s}초).", "st.batchfail": " {m}장은 처리하지 못했어요.", "batch.hint": "{n}장 준비됐어요. 사진에 저장을 눌러주세요.",
       "a.view": "그레인이 적용된 사진", "a.mini": "전체 사진. 눌러서 이동해요.", "a.sheet": "그레인 설정",
       "st.notimage": "이미지 파일이 아니에요. JPEG, PNG, HEIC 사진을 열어주세요.", "st.opening": "여는 중…",
       "st.cantopen": "이 브라우저에서 사진을 열 수 없어요. JPEG나 PNG로 시도해보세요.",
@@ -1167,7 +1167,7 @@ self.onmessage = (e) => {
       "glow.hint": "明るい部分が暖かい光でふんわりにじみます。ダブルタップで0に戻ります。",
       "soft.hint": "デジタル特有のシャープさを抑えます。ダブルタップで0に戻ります。",
       "result.hint": "画像を長押し（スマホ）または右クリック（パソコン）で保存してください。", close: "閉じる",
-      "save.photos": "写真に保存", download: "ダウンロード",
+      "save.photos": "写真に保存", download: "ダウンロード", "save.all": "{n}枚保存", "batch.tag": "{n}枚・同じ設定で保存", "st.batch": "{i}/{n}枚目を処理中…", "st.batchdone": "{n}枚保存しました（{s}秒）。", "st.batchfail": " {m}枚は処理できませんでした。", "batch.hint": "{n}枚の準備ができました。「写真に保存」を押してください。",
       "a.view": "グレインを加えた写真", "a.mini": "写真全体。タップで移動します。", "a.sheet": "グレイン設定",
       "st.notimage": "画像ファイルではありません。JPEG・PNG・HEICの写真を開いてください。", "st.opening": "開いています…",
       "st.cantopen": "このブラウザでは写真を開けませんでした。JPEGかPNGでお試しください。",
@@ -1258,7 +1258,8 @@ self.onmessage = (e) => {
     st.seed = photoSeed(name, full ? full.W : st.W, full ? full.H : st.H); // one grain pattern per photo (from its original size)
     st.base = null; st.glow = null; buildMips(); setFit();
     $("fname").textContent = sample ? t("sample") : name;
-    $("fsize").textContent = sample ? "" : `${st.full ? st.full.W : st.W}×${st.full ? st.full.H : st.H}`;
+    $("fsize").textContent = sample ? "" : st.batch ? t("batch.tag", { n: st.batch.length }) : `${st.full ? st.full.W : st.W}×${st.full ? st.full.H : st.H}`;
+    $("saveLabel").textContent = st.batch ? t("save.all", { n: st.batch.length }) : t("save");
     setStatus(scaledFrom ? t("st.resized", { w: st.W, h: st.H, o: scaledFrom }) : "");
     schedule(true);
   }
@@ -1290,11 +1291,18 @@ self.onmessage = (e) => {
       setStatus(t("st.cantopen"));
     }
   }
-  $("file").addEventListener("change", (e) => { openFile(e.target.files[0]); e.target.value = ""; });
+  // several photos: the first one is shown to set the look, Save then processes all of them with those settings
+  function openFiles(list) {
+    const files = [...(list || [])].filter((f) => /^image\//.test(f.type || "image/"));
+    if (!files.length) { setStatus(t("st.notimage")); return; }
+    st.batch = files.length > 1 ? files : null;
+    openFile(files[0]);
+  }
+  $("file").addEventListener("change", (e) => { openFiles(e.target.files); e.target.value = ""; });
   viewer.addEventListener("dragover", (e) => { e.preventDefault(); viewer.classList.add("dropping"); });
   viewer.addEventListener("dragleave", () => viewer.classList.remove("dropping"));
-  viewer.addEventListener("drop", (e) => { e.preventDefault(); viewer.classList.remove("dropping"); if (e.dataTransfer.files[0]) openFile(e.dataTransfer.files[0]); });
-  document.addEventListener("paste", (e) => { const f = [...(e.clipboardData?.files || [])].find((x) => /^image\//.test(x.type)); if (f) openFile(f); });
+  viewer.addEventListener("drop", (e) => { e.preventDefault(); viewer.classList.remove("dropping"); if (e.dataTransfer.files.length) openFiles(e.dataTransfer.files); });
+  document.addEventListener("paste", (e) => { const f = [...(e.clipboardData?.files || [])].find((x) => /^image\//.test(x.type)); if (f) { st.batch = null; openFile(f); } });
 
   /* ---------- view: whole photo, live grain, zoom and pan ---------- */
   const DPR = () => Math.min(window.devicePixelRatio || 1, 3);
@@ -1761,8 +1769,8 @@ self.onmessage = (e) => {
     }
   }
   // Original size, strip by strip: no canvas larger than one strip, JPEG written in the worker.
-  async function renderFull(o, onProgress) {
-    const F = st.full, W = F.W, H = F.H, src = await decodeFull(F.file);
+  // src: decoded image (W x H); glow: glow map already scaled to W x H (or null).
+  async function renderStream(src, W, H, o, glow, onProgress) {
     const w = getWorker();
     let wait = null;
     w.onmessage = (e) => {
@@ -1770,8 +1778,6 @@ self.onmessage = (e) => {
       if (wait) { const r = wait; wait = null; r(e.data); }
     };
     const next = () => new Promise((r, j) => { wait = r; w.onerror = (e) => j(e); });
-    if (o.glow > 0) ensureGlow();
-    const glow = o.glow > 0 && st.glow ? { ...st.glow, data: st.glow.data.slice(), sx: st.glow.lw / W, sy: st.glow.lh / H } : null;
     let msg = next();
     w.postMessage({ type: "start", W, H, opts: o, glow }, glow ? [glow.data.buffer] : []);
     const M = (await msg).margin, STRIP = 256;
@@ -1793,76 +1799,140 @@ self.onmessage = (e) => {
       return new Blob([(await msg).jpg], { type: "image/jpeg" });
     } finally {
       c.width = c.height = 0;
+    }
+  }
+  // Whole image in one go (fits this device's canvas limit): grain in the worker, JPEG by the browser's fast native encoder.
+  async function renderWhole(img, W, H, o, glow, onProgress, onEncode) {
+    const w = getWorker();
+    const buf = await new Promise((resolve, reject) => {
+      w.onmessage = (e) => {
+        if (e.data.progress != null) onProgress(e.data.progress);
+        if (e.data.done) resolve(e.data.buf);
+      };
+      w.onerror = (e) => reject(e);
+      w.postMessage({ buf: img.data.buffer, W, H, opts: o, glow }, glow ? [img.data.buffer, glow.data.buffer] : [img.data.buffer]);
+    });
+    if (onEncode) onEncode();
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    c.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(buf), W, H), 0, 0);
+    const blob = await new Promise((res) => c.toBlob(res, "image/jpeg", 0.95));
+    c.width = c.height = 0;
+    if (!blob) throw new Error("encode");
+    return blob;
+  }
+  // glow map of the current preview photo, scaled to a W x H render (a copy: the worker takes the buffer)
+  const curGlow = (o, W, H) => {
+    if (!(o.glow > 0)) return null;
+    ensureGlow();
+    return st.glow ? { ...st.glow, data: st.glow.data.slice(), sx: st.glow.lw / W, sy: st.glow.lh / H } : null;
+  };
+  // glow map of any decoded photo, from a ~1024 px copy (same as ensureGlow does for the preview)
+  function glowFor(src, W, H) {
+    const sc = Math.min(1, 1024 / Math.max(W, H));
+    const lw = Math.max(16, Math.round(W * sc)), lh = Math.max(16, Math.round(H * sc));
+    const c = document.createElement("canvas"); c.width = lw; c.height = lh;
+    const g = c.getContext("2d", { willReadFrequently: true }); g.imageSmoothingQuality = "high"; g.drawImage(src, 0, 0, lw, lh);
+    const gm = Efx.buildGlowMap(g.getImageData(0, 0, lw, lh).data, lw, lh, 4, 255, W, H);
+    c.width = c.height = 0;
+    return gm;
+  }
+  // One photo file of a batch, at its original size, with the given settings and its own grain pattern.
+  async function renderFile(file, o, onProgress) {
+    const src = await decodeFull(file);
+    try {
+      const W = src.width || src.naturalWidth, H = src.height || src.naturalHeight;
+      const name = file.name.replace(/\.[^.]+$/, "");
+      const oo = { ...o, seed: photoSeed(name, W, H) };   // same pattern this photo would get when opened alone
+      const glow = o.glow > 0 ? glowFor(src, W, H) : null;
+      let blob = null;
+      if (W * H <= MAX_PIXELS) {
+        try {
+          const c = document.createElement("canvas"); c.width = W; c.height = H;
+          const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(src, 0, 0);
+          const img = g.getImageData(0, 0, W, H); c.width = c.height = 0;
+          blob = await renderWhole(img, W, H, oo, glow && { ...glow, data: glow.data.slice() }, onProgress);
+        } catch (e) { if (worker) { worker.terminate(); worker = null; } blob = null; }
+      }
+      if (!blob) blob = await renderStream(src, W, H, oo, glow, onProgress);
+      return new File([blob], fileName(name, o), { type: "image/jpeg" });
+    } finally {
       if (src.close) src.close();
     }
   }
+  const fileName = (name, o) => `${name}_ttraw${o.iso}${o.bw ? "bw" : ""}${o.half ? "half" : ""}${o.glow || o.soft ? "_efx" : ""}.jpg`;
+
   let lastUrl = null;
-  let pendingFile = null;
+  let pendingFiles = null;
   $("closeResult").addEventListener("click", () => { $("result").hidden = true; });
   $("shareBtn").addEventListener("click", async () => {
-    if (!pendingFile) return;
-    try { await navigator.share({ files: [pendingFile] }); $("result").hidden = true; } catch (e) { /* cancelled */ }
+    if (!pendingFiles) return;
+    try { await navigator.share({ files: pendingFiles }); $("result").hidden = true; } catch (e) { /* cancelled */ }
   });
+  // hand finished files to the person: viewer download API, phone share sheet ("Save Image(s)"), computer downloads,
+  // or the result card with a Save to Photos button (also when the share sheet needs a fresh tap after a long batch)
+  async function deliver(files, doneMsg) {
+    const canShare = !!(navigator.canShare && navigator.canShare({ files }));
+    const touch = navigator.maxTouchPoints > 0, many = files.length > 1;
+    const showFallback = () => {
+      if (lastUrl) URL.revokeObjectURL(lastUrl);
+      lastUrl = URL.createObjectURL(files[0]); $("resultImg").src = lastUrl;
+      $("dlLink").href = lastUrl; $("dlLink").download = files[0].name; $("dlLink").hidden = many;
+      $("result").querySelector("p").textContent = many ? t("batch.hint", { n: files.length }) : t("result.hint");
+      $("shareBtn").hidden = !canShare; pendingFiles = files;
+      $("result").hidden = false; setStatus("");
+    };
+    if (downloads) {
+      try { for (const f of files) await downloads.save({ filename: f.name, data: f }); setStatus(doneMsg); }
+      catch (err) { if (err && err.code === "declined") setStatus(t("st.cancelled")); else showFallback(); }
+    } else if (touch && canShare) {
+      try { await navigator.share({ files }); setStatus(doneMsg); }
+      catch (err) { if (err && err.name === "AbortError" && !many) setStatus(t("st.cancelled")); else showFallback(); }
+    } else if (!touch) {
+      for (const f of files) {
+        const a = document.createElement("a"), url = URL.createObjectURL(f);
+        a.href = url; a.download = f.name; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        if (many) await new Promise((r) => setTimeout(r, 250)); // browsers drop downloads fired in one burst
+      }
+      setStatus(doneMsg);
+    } else showFallback();
+  }
+
+  async function saveBatch(bar, fill) {
+    const files = st.batch, o = opts(), n = files.length, out = [], t0 = performance.now();
+    let failed = 0;
+    for (let i = 0; i < n; i++) {
+      setStatus(t("st.batch", { i: i + 1, n }), true);
+      try { out.push(await renderFile(files[i], o, (p) => { fill.style.width = Math.round(((i + p) / n) * 100) + "%"; })); }
+      catch (e) { failed++; if (worker) { worker.terminate(); worker = null; } }
+      fill.style.width = Math.round(((i + 1) / n) * 100) + "%";
+    }
+    if (!out.length) { setStatus(t("st.failed")); return; }
+    const secs = ((performance.now() - t0) / 1000).toFixed(1);
+    await deliver(out, t("st.batchdone", { n: out.length, s: secs }) + (failed ? t("st.batchfail", { m: failed }) : ""));
+  }
+
   $("save").addEventListener("click", async () => {
     if (!st.src || st.busy) return;
     st.busy = true; $("save").disabled = true;
     const bar = $("bar"), fill = $("barFill"); bar.hidden = false; fill.style.width = "0%";
-    const o = opts(), W = st.W, H = st.H, t0 = performance.now();
-    setStatus(t("st.adding", { w: st.full ? st.full.W : W, h: st.full ? st.full.H : H }), true);
     try {
+      if (st.batch) { await saveBatch(bar, fill); return; }
+      const o = opts(), W = st.W, H = st.H, t0 = performance.now();
+      const prog = (p) => { fill.style.width = Math.round(p * 100) + "%"; };
+      setStatus(t("st.adding", { w: st.full ? st.full.W : W, h: st.full ? st.full.H : H }), true);
       let blob = null;
       if (st.full) {
-        try { blob = await renderFull(o, (p) => { fill.style.width = Math.round(p * 100) + "%"; }); }
-        catch (e) { if (worker) { worker.terminate(); worker = null; } blob = null; } // fall back to the preview size below
+        try {
+          const src = await decodeFull(st.full.file);
+          try { blob = await renderStream(src, st.full.W, st.full.H, o, curGlow(o, st.full.W, st.full.H), prog); }
+          finally { if (src.close) src.close(); }
+        } catch (e) { if (worker) { worker.terminate(); worker = null; } blob = null; } // fall back to the preview size below
       }
-      if (!blob) {
-      const img = st.sctx.getImageData(0, 0, W, H);
-      const w = getWorker();
-      const buf = await new Promise((resolve, reject) => {
-        w.onmessage = (e) => {
-          if (e.data.progress != null) fill.style.width = Math.round(e.data.progress * 100) + "%";
-          if (e.data.done) resolve(e.data.buf);
-        };
-        w.onerror = (e) => reject(e);
-        if (o.glow > 0) ensureGlow();
-        const glow = o.glow > 0 && st.glow ? { ...st.glow, data: st.glow.data.slice() } : null;
-        w.postMessage({ buf: img.data.buffer, W, H, opts: o, glow }, glow ? [img.data.buffer, glow.data.buffer] : [img.data.buffer]);
-      });
-      setStatus(t("st.encoding"), true);
-      const c = document.createElement("canvas"); c.width = W; c.height = H;
-      c.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(buf), W, H), 0, 0);
-      blob = await new Promise((res) => c.toBlob(res, "image/jpeg", 0.95));
-      c.width = c.height = 0;
-      if (!blob) throw new Error("encode");
-      }
+      if (!blob) blob = await renderWhole(st.sctx.getImageData(0, 0, W, H), W, H, o, curGlow(o, W, H), prog, () => setStatus(t("st.encoding"), true));
       const secs = ((performance.now() - t0) / 1000).toFixed(1);
-      const filename = `${st.name}_ttraw${o.iso}${o.bw ? "bw" : ""}${o.half ? "half" : ""}${o.glow || o.soft ? "_efx" : ""}.jpg`;
-      const file = new File([blob], filename, { type: "image/jpeg" });
-      const canShare = !!(navigator.canShare && navigator.canShare({ files: [file] }));
-      const touch = navigator.maxTouchPoints > 0;
-      const showFallback = () => {
-        if (lastUrl) URL.revokeObjectURL(lastUrl);
-        lastUrl = URL.createObjectURL(blob); $("resultImg").src = lastUrl;
-        $("dlLink").href = lastUrl; $("dlLink").download = filename;
-        $("shareBtn").hidden = !canShare; pendingFile = file;
-        $("result").hidden = false; setStatus("");
-      };
-      if (downloads) {
-        try { await downloads.save({ filename, data: blob }); setStatus(t("st.saved", { f: filename, s: secs })); }
-        catch (err) {
-          if (err && err.code === "declined") setStatus(t("st.cancelled"));
-          else showFallback();
-        }
-      } else if (touch && canShare) {
-        // phones: the share sheet has "Save Image", which puts it straight into the photo library
-        try { await navigator.share({ files: [file] }); setStatus(t("st.done", { s: secs })); }
-        catch (err) { if (err && err.name === "AbortError") setStatus(t("st.cancelled")); else showFallback(); }
-      } else if (!touch) {
-        const a = document.createElement("a"), url = URL.createObjectURL(blob);
-        a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
-        setStatus(t("st.saved", { f: filename, s: secs }));
-      } else showFallback();
+      const file = new File([blob], fileName(st.name, o), { type: "image/jpeg" });
+      await deliver([file], navigator.maxTouchPoints > 0 && !downloads ? t("st.done", { s: secs }) : t("st.saved", { f: file.name, s: secs }));
     } catch (e) {
       setStatus(t("st.failed"));
     } finally {
