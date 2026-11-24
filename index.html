@@ -95,7 +95,7 @@
   /* chips under the bar */
   .chips {
     position: absolute; z-index: 2; left: max(16px, env(safe-area-inset-left, 0px)); top: calc(env(safe-area-inset-top, 0px) + 66px);
-    display: flex; gap: 6px; align-items: center; max-width: calc(100% - 32px);
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center; max-width: calc(100% - 32px);
   }
   .chips > .chip:not(.label-chip) { flex: 0 0 auto; white-space: nowrap; }
   body:has(#viewer.zoomed) .chips { max-width: calc(100% - 200px); } /* the mini map sits on the right while zoomed */
@@ -112,7 +112,14 @@
   .icon-chip { width: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
   .icon-chip svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .icon-chip:disabled { opacity: 0.35; cursor: default; }
-  .batchnav { display: inline-flex; gap: 4px; flex: 0 0 auto; }
+  .batchnav { display: flex; gap: 4px; flex: 0 0 100%; align-items: center; } /* its own row under the chips */
+  .batchnav .text-chip { font-family: var(--font-body); padding: 0 12px; }
+  .savemenu { position: absolute; z-index: 5; right: max(16px, env(safe-area-inset-right, 0px)); top: calc(env(safe-area-inset-top, 0px) + 58px);
+    display: flex; flex-direction: column; min-width: 180px; padding: 6px; border-radius: 12px; background: var(--glass-strong);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line); }
+  .savemenu button { text-align: left; padding: 11px 12px; border: 0; border-radius: 8px; background: none; color: var(--fg); font: inherit; font-size: 14px; cursor: pointer; }
+  .savemenu button:hover, .savemenu button:focus-visible { background: rgba(255,255,255,0.08); }
+  .savemenu button.primary { color: var(--accent); font-weight: 600; }
   body:has(#viewer.zoomed) .batchnav { display: none; } /* zoomed: room for the mini map; switching photos returns to Fit anyway */
   .bcount { cursor: default; line-height: 28px; padding: 0 8px; font-variant-numeric: tabular-nums; }
   .label-chip { cursor: default; font-family: var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; line-height: 28px; }
@@ -226,7 +233,12 @@
       <button class="chip icon-chip" id="bPrev" type="button" data-i18n-aria="prev" aria-label="Previous photo"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
       <span class="chip bcount" id="bCount">1/1</span>
       <button class="chip icon-chip" id="bNext" type="button" data-i18n-aria="next" aria-label="Next photo"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button class="chip text-chip" id="bApply" type="button" data-i18n="apply.all" data-i18n-title="apply.all.tip">Apply to all</button>
     </span>
+  </div>
+  <div class="savemenu" id="saveMenu" hidden role="menu">
+    <button type="button" id="saveThis" role="menuitem" data-i18n="save.this">Save this photo</button>
+    <button type="button" id="saveAll" class="primary" role="menuitem">Save all</button>
   </div>
   <canvas id="mini" hidden data-i18n-aria="a.mini" aria-label="Whole photo. Tap to move around."></canvas>
   <div class="before-tag" id="beforeTag" hidden data-i18n="original">Original</div>
@@ -1142,7 +1154,7 @@ self.onmessage = (e) => {
       "glow.hint": "Highlights bloom outward with a faint warm halo. Double-tap to reset.",
       "soft.hint": "Takes the edge off digital crispness. Double-tap to reset.",
       "result.hint": "Long-press the image (phone) or right-click it (computer) to save it.", close: "Close",
-      "save.photos": "Save to Photos", download: "Download", "save.all": "Save {n}", "batch.tag": "{n} photos, same settings", prev: "Previous photo", next: "Next photo", "st.batch": "Photo {i} of {n}…", "st.batchdone": "Saved {n} photos ({s} s).", "st.batchfail": " {m} couldn't be processed.", "batch.hint": "{n} photos are ready. Tap Save to Photos.",
+      "save.photos": "Save to Photos", download: "Download", "save.all": "Save all {n}", "save.this": "Save this photo only", "apply.all": "Apply to all", "apply.all.tip": "Give every photo the settings shown now", "st.applied": "All {n} photos now use these settings.", "batch.tag": "{n} photos, same settings", prev: "Previous photo", next: "Next photo", "st.batch": "Photo {i} of {n}…", "st.batchdone": "Saved {n} photos ({s} s).", "st.batchfail": " {m} couldn't be processed.", "batch.hint": "{n} photos are ready. Tap Save to Photos.",
       "a.view": "Photo with grain", "a.mini": "Whole photo. Tap to move around.", "a.sheet": "Grain settings",
       "st.notimage": "That file isn't an image. Open a JPEG, PNG or HEIC photo.", "st.opening": "Opening…",
       "st.cantopen": "This browser couldn't open that photo. Try a JPEG or PNG.",
@@ -1159,7 +1171,7 @@ self.onmessage = (e) => {
       "glow.hint": "밝은 부분이 따뜻한 빛으로 은은하게 번져요. 두 번 누르면 0으로 돌아가요.",
       "soft.hint": "디지털 특유의 날카로움을 덜어줘요. 두 번 누르면 0으로 돌아가요.",
       "result.hint": "사진을 길게 누르거나(휴대폰) 우클릭해서(컴퓨터) 저장하세요.", close: "닫기",
-      "save.photos": "사진에 저장", download: "다운로드", "save.all": "{n}장 저장", "batch.tag": "{n}장 · 같은 설정으로 저장", prev: "이전 사진", next: "다음 사진", "st.batch": "{i}/{n}장 처리 중…", "st.batchdone": "{n}장 저장했어요 ({s}초).", "st.batchfail": " {m}장은 처리하지 못했어요.", "batch.hint": "{n}장 준비됐어요. 사진에 저장을 눌러주세요.",
+      "save.photos": "사진에 저장", download: "다운로드", "save.all": "{n}장 모두 저장", "save.this": "이 사진만 저장", "apply.all": "전체 적용", "apply.all.tip": "지금 설정을 모든 사진에 똑같이 적용해요", "st.applied": "{n}장 모두 지금 설정으로 맞췄어요.", "batch.tag": "{n}장 · 같은 설정으로 저장", prev: "이전 사진", next: "다음 사진", "st.batch": "{i}/{n}장 처리 중…", "st.batchdone": "{n}장 저장했어요 ({s}초).", "st.batchfail": " {m}장은 처리하지 못했어요.", "batch.hint": "{n}장 준비됐어요. 사진에 저장을 눌러주세요.",
       "a.view": "그레인이 적용된 사진", "a.mini": "전체 사진. 눌러서 이동해요.", "a.sheet": "그레인 설정",
       "st.notimage": "이미지 파일이 아니에요. JPEG, PNG, HEIC 사진을 열어주세요.", "st.opening": "여는 중…",
       "st.cantopen": "이 브라우저에서 사진을 열 수 없어요. JPEG나 PNG로 시도해보세요.",
@@ -1176,7 +1188,7 @@ self.onmessage = (e) => {
       "glow.hint": "明るい部分が暖かい光でふんわりにじみます。ダブルタップで0に戻ります。",
       "soft.hint": "デジタル特有のシャープさを抑えます。ダブルタップで0に戻ります。",
       "result.hint": "画像を長押し（スマホ）または右クリック（パソコン）で保存してください。", close: "閉じる",
-      "save.photos": "写真に保存", download: "ダウンロード", "save.all": "{n}枚保存", "batch.tag": "{n}枚・同じ設定で保存", prev: "前の写真", next: "次の写真", "st.batch": "{i}/{n}枚目を処理中…", "st.batchdone": "{n}枚保存しました（{s}秒）。", "st.batchfail": " {m}枚は処理できませんでした。", "batch.hint": "{n}枚の準備ができました。「写真に保存」を押してください。",
+      "save.photos": "写真に保存", download: "ダウンロード", "save.all": "{n}枚すべて保存", "save.this": "この写真だけ保存", "apply.all": "すべてに適用", "apply.all.tip": "今の設定をすべての写真に適用します", "st.applied": "{n}枚すべてをこの設定にしました。", "batch.tag": "{n}枚・同じ設定で保存", prev: "前の写真", next: "次の写真", "st.batch": "{i}/{n}枚目を処理中…", "st.batchdone": "{n}枚保存しました（{s}秒）。", "st.batchfail": " {m}枚は処理できませんでした。", "batch.hint": "{n}枚の準備ができました。「写真に保存」を押してください。",
       "a.view": "グレインを加えた写真", "a.mini": "写真全体。タップで移動します。", "a.sheet": "グレイン設定",
       "st.notimage": "画像ファイルではありません。JPEG・PNG・HEICの写真を開いてください。", "st.opening": "開いています…",
       "st.cantopen": "このブラウザでは写真を開けませんでした。JPEGかPNGでお試しください。",
@@ -1270,7 +1282,6 @@ self.onmessage = (e) => {
     $("fsize").textContent = sample ? "" : `${st.full ? st.full.W : st.W}×${st.full ? st.full.H : st.H}`;
     $("batchNav").hidden = !st.batch;
     if (st.batch) $("bCount").textContent = `${st.bi + 1}/${st.batch.length}`;
-    $("saveLabel").textContent = st.batch ? t("save.all", { n: st.batch.length }) : t("save");
     setStatus(scaledFrom ? t("st.resized", { w: st.W, h: st.H, o: scaledFrom }) : "");
     schedule(true);
   }
@@ -1307,18 +1318,32 @@ self.onmessage = (e) => {
     const files = [...(list || [])].filter((f) => /^image\//.test(f.type || "image/"));
     if (!files.length) { setStatus(t("st.notimage")); return; }
     st.batch = files.length > 1 ? files : null; st.bi = 0;
+    // each photo keeps its own settings and undo history; all start from the settings shown now
+    if (st.batch) { const now = snap(); st.bset = files.map(() => now); st.bhist = files.map(() => ({ hist: [now], hpos: 0 })); }
     openFile(files[0]);
   }
   // look through the batch with the same settings: arrows, or swipe left/right on the photo while it fits the screen
   async function showBatch(step) {
     if (!st.batch || st.switching || st.busy) return;
     const n = st.batch.length, i = (st.bi + step + n) % n;
-    st.switching = true; st.bi = i;
+    st.switching = true;
+    st.bset[st.bi] = snap(); st.bhist[st.bi] = { hist, hpos };       // keep this photo's settings
+    st.bi = i; ({ hist, hpos } = st.bhist[i]);                        // and bring back the next one's
+    restore(st.bset[i]); updUndo();
     $("bCount").textContent = `${i + 1}/${n}`;
     try { await openFile(st.batch[i]); } finally { st.switching = false; }
   }
   $("bPrev").addEventListener("click", () => showBatch(-1));
   $("bNext").addEventListener("click", () => showBatch(1));
+  $("bApply").addEventListener("click", () => {
+    if (!st.batch) return;
+    const now = snap(); st.bset = st.batch.map(() => now);
+    st.bhist.forEach((h, j) => {                                       // one undo step on every other photo too
+      if (j === st.bi || h.hist[h.hpos] === now) return;
+      h.hist = h.hist.slice(0, h.hpos + 1).concat(now); h.hpos = h.hist.length - 1;
+    });
+    setStatus(t("st.applied", { n: st.batch.length }));
+  });
   $("file").addEventListener("change", (e) => { openFiles(e.target.files); e.target.value = ""; });
   viewer.addEventListener("dragover", (e) => { e.preventDefault(); viewer.classList.add("dropping"); });
   viewer.addEventListener("dragleave", () => viewer.classList.remove("dropping"));
@@ -1923,12 +1948,15 @@ self.onmessage = (e) => {
     } else showFallback();
   }
 
+  // settings snapshot (see snap) -> engine options
+  const optsFrom = (j) => { const v = JSON.parse(j); return { amount: Number(v.a), iso: v.i === "half" ? 400 : Number(v.i), bw: v.c === "bw", half: v.i === "half", glow: Number(v.g), soft: Number(v.s) }; };
   async function saveBatch(bar, fill) {
-    const files = st.batch, o = opts(), n = files.length, out = [], t0 = performance.now();
+    st.bset[st.bi] = snap();
+    const files = st.batch, n = files.length, out = [], t0 = performance.now();
     let failed = 0;
     for (let i = 0; i < n; i++) {
       setStatus(t("st.batch", { i: i + 1, n }), true);
-      try { out.push(await renderFile(files[i], o, (p) => { fill.style.width = Math.round(((i + p) / n) * 100) + "%"; })); }
+      try { out.push(await renderFile(files[i], optsFrom(st.bset[i]), (p) => { fill.style.width = Math.round(((i + p) / n) * 100) + "%"; })); }
       catch (e) { failed++; if (worker) { worker.terminate(); worker = null; } }
       fill.style.width = Math.round(((i + 1) / n) * 100) + "%";
     }
@@ -1937,12 +1965,24 @@ self.onmessage = (e) => {
     await deliver(out, t("st.batchdone", { n: out.length, s: secs }) + (failed ? t("st.batchfail", { m: failed }) : ""));
   }
 
-  $("save").addEventListener("click", async () => {
+  // with several photos open, Save asks: this photo only, or all of them (each with its own settings)
+  const menu = $("saveMenu");
+  $("save").addEventListener("click", (e) => {
+    if (!st.src || st.busy) return;
+    if (!st.batch) { doSave(false); return; }
+    e.stopPropagation();
+    $("saveAll").textContent = t("save.all", { n: st.batch.length });
+    menu.hidden = !menu.hidden;
+  });
+  $("saveThis").addEventListener("click", () => { menu.hidden = true; doSave(false); });
+  $("saveAll").addEventListener("click", () => { menu.hidden = true; doSave(true); });
+  document.addEventListener("pointerdown", (e) => { if (!menu.hidden && !menu.contains(e.target) && !$("save").contains(e.target)) menu.hidden = true; });
+  async function doSave(all) {
     if (!st.src || st.busy) return;
     st.busy = true; $("save").disabled = true;
     const bar = $("bar"), fill = $("barFill"); bar.hidden = false; fill.style.width = "0%";
     try {
-      if (st.batch) { await saveBatch(bar, fill); return; }
+      if (all && st.batch) { await saveBatch(bar, fill); return; }
       const o = opts(), W = st.W, H = st.H, t0 = performance.now();
       const prog = (p) => { fill.style.width = Math.round(p * 100) + "%"; };
       setStatus(t("st.adding", { w: st.full ? st.full.W : W, h: st.full ? st.full.H : H }), true);
@@ -1963,7 +2003,7 @@ self.onmessage = (e) => {
     } finally {
       st.busy = false; $("save").disabled = false; bar.hidden = true;
     }
-  });
+  }
 
   setSource(drawSample(), "ttraw_sample", true);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (st.sample) setSource(drawSample(), "ttraw_sample", true); });
