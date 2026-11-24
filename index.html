@@ -176,10 +176,6 @@
     background: transparent; border: 0; border-bottom: 1px solid var(--line); text-align: right; padding: 2px 0; }
   input[type="range"] { width: 100%; accent-color: var(--fg); height: 28px; margin: 0; }
   .hint { color: var(--muted); font-size: 12px; }
-  /* what the control does on line one, how to reset on line two: never more than two lines */
-  .hint .reset { display: block; }
-  .hint, .hint .reset { overflow: hidden; text-overflow: ellipsis; }
-  .pane .hint:has(.reset) { white-space: nowrap; }
 
   .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
   .seg label { position: relative; }
@@ -927,7 +923,7 @@ return { efxSettings, buildGlowMap, applyEfx, blurKernel };
 <script id="worker-src" type="text/plain">
 /*! Streaming baseline JPEG encoder (4:2:0), after the JPEG encoder (c) 2008 Adobe Systems Inc., BSD licence,
  * JavaScript port by Andreas Ritter. Rows are pushed in any batch size; memory stays one 16-row band. */
-function JpegStream(W, H, quality) {
+function JpegStream(W, H, quality, seg) { // seg: write restart segments (bands encoded in parallel), see segment()
   const ZZ = [0, 1, 5, 6, 14, 15, 27, 28, 2, 4, 7, 13, 16, 26, 29, 42, 3, 8, 12, 17, 25, 30, 41, 43, 9, 11, 18, 24, 31, 40, 44, 53,
     10, 19, 23, 32, 39, 45, 52, 54, 20, 22, 33, 38, 46, 51, 55, 60, 21, 34, 37, 47, 50, 56, 59, 61, 35, 36, 48, 49, 57, 58, 62, 63];
   const YQT = [16, 11, 10, 16, 24, 40, 51, 61, 12, 12, 14, 19, 26, 58, 60, 55, 14, 13, 16, 24, 40, 57, 69, 56, 14, 17, 22, 29, 51, 87, 80, 62,
@@ -969,7 +965,7 @@ function JpegStream(W, H, quality) {
   const YDC = huff(DC_L_N, DC_V), UDC = huff(DC_C_N, DC_V), YAC = huff(AC_L_N, AC_L_V), UAC = huff(AC_C_N, AC_C_V);
 
   // output
-  let out = new Uint8Array(Math.max(1 << 20, Math.min(W * H, 1 << 26))), op = 0;
+  let out = new Uint8Array(seg ? 1 << 20 : Math.max(1 << 20, Math.min(W * H, 1 << 26))), op = 0;
   function room(n) { if (op + n > out.length) { const nb = new Uint8Array(Math.max(out.length * 2, op + n)); nb.set(out.subarray(0, op)); out = nb; } }
   function byte(v) { room(1); out[op++] = v; }
   function word(v) { byte((v >> 8) & 255); byte(v & 255); }
@@ -985,7 +981,8 @@ function JpegStream(W, H, quality) {
     bitBuf &= (1 << bitCnt) - 1;
   }
 
-  // headers
+  // headers (ri: restart interval in MCUs, 0 = none)
+  function writeHeader(ri) {
   word(0xffd8);
   word(0xffe0); word(16); [0x4a, 0x46, 0x49, 0x46, 0, 1, 1, 0].forEach(byte); word(1); word(1); byte(0); byte(0);
   word(0xffdb); word(132); byte(0); for (let i = 0; i < 64; i++) byte(YT[i]); byte(1); for (let i = 0; i < 64; i++) byte(UT[i]);
@@ -993,7 +990,10 @@ function JpegStream(W, H, quality) {
   word(0xffc4); word(0x01a2);
   const dht = (cls, nr, vals) => { byte(cls); for (let i = 1; i <= 16; i++) byte(nr[i]); vals.forEach(byte); };
   dht(0x00, DC_L_N, DC_V); dht(0x10, AC_L_N, AC_L_V); dht(0x01, DC_C_N, DC_V); dht(0x11, AC_C_N, AC_C_V);
+  if (ri) { word(0xffdd); word(4); word(ri); }
   word(0xffda); word(12); byte(3); byte(1); byte(0); byte(2); byte(0x11); byte(3); byte(0x11); byte(0); byte(0x3f); byte(0);
+  }
+  if (!seg) writeHeader(0);
 
   // DCT + quantize + entropy code one 8x8 block (d: Float32Array(64), natural order; modified in place)
   const DU = new Int32Array(64);
@@ -1079,6 +1079,16 @@ function JpegStream(W, H, quality) {
         if (++rows === 16) encodeBand();
       }
     },
+    // header only (with the restart interval), as its own bytes
+    header(ri) { op = 0; writeHeader(ri); return out.slice(0, op); },
+    // one restart segment: rows of a band, fresh DC predictors, padded to a byte. Joined with RSTn markers by the page.
+    segment(rgba, n) {
+      op = 0; bitBuf = 0; bitCnt = 0; dY = dU = dV = 0; rows = 0;
+      this.push(rgba, n);
+      if (rows > 0) encodeBand();
+      if (bitCnt > 0) bits((1 << (8 - bitCnt)) - 1, 8 - bitCnt);
+      return out.slice(0, op);
+    },
     finish() {
       if (rows > 0 && done < H) encodeBand();
       if (bitCnt > 0) bits((1 << (8 - bitCnt)) - 1, 8 - bitCnt);
@@ -1108,26 +1118,29 @@ function streamMessage(m) {
     self.postMessage({ done: true, jpg: jpg.buffer }, [jpg.buffer]);
   }
 }
+// Parallel path: several of these workers each take bands of rows (with margins for the effects) of the same photo;
+// each band is also JPEG-encoded here as one restart segment. Grain is a per-pixel hash, so bands give exactly the same result as one pass.
+const jobs = {};
+function poolMessage(m) {
+  if (m.type === "job") {
+    jobs[m.id] = { W: m.W, S: Engine.makeSettings(m.opts, m.W, m.H), E: Efx.efxSettings(m.opts, m.W, m.H), glow: m.glow,
+      enc: m.jpeg ? JpegStream(m.W, m.H, 95, true) : null };
+    if (m.ri != null) { const h = jobs[m.id].enc.header(m.ri); self.postMessage({ hdr: h.buffer, id: m.id }, [h.buffer]); }
+  } else if (m.type === "band") {
+    const J = jobs[m.id], W = J.W, data = new Uint8ClampedArray(m.buf), rh = m.bot - m.top, off = m.y - m.top;
+    const pre = J.E.active ? Efx.applyEfx(data, W, rh, 4, 255, { x: 0, y: off, w: W, h: m.h }, 0, m.y, J.E, J.glow)
+      : data.subarray(off * W * 4, (off + m.h) * W * 4);
+    let out = Engine.grainCombine(pre, W, m.h, 4, 255, J.S, Engine.noiseFields(W, m.h, m.y, 0, J.S));
+    if (J.enc) out = J.enc.segment(out, m.h);                // compressed right here: small to send, encoded in parallel
+    self.postMessage({ band: true, id: m.id, y: m.y, h: m.h, buf: out.buffer }, [out.buffer]);
+  } else if (m.type === "jobEnd") {
+    delete jobs[m.id];
+  } else return false;
+  return true;
+}
 self.onmessage = (e) => {
-  if (e.data.type) return streamMessage(e.data);
-  const { buf, W, H, opts, glow } = e.data;
-  const data = new Uint8ClampedArray(buf);
-  const S = Engine.makeSettings(opts, W, H);
-  const E = Efx.efxSettings(opts, W, H), M = E.active ? E.margin : 0;
-  const out = E.active ? new Uint8ClampedArray(W * H * 4) : data; // effects read neighbours, so they can't work in place
-  const STRIP = 256;
-  for (let y = 0; y < H; y += STRIP) {
-    const h = Math.min(STRIP, H - y);
-    let pre;
-    if (E.active) {
-      const top = Math.max(0, y - M), bot = Math.min(H, y + h + M);
-      pre = Efx.applyEfx(data.subarray(top * W * 4, bot * W * 4), W, bot - top, 4, 255, { x: 0, y: y - top, w: W, h }, 0, y, E, glow);
-    } else pre = data.subarray(y * W * 4, (y + h) * W * 4);
-    const noise = Engine.noiseFields(W, h, y, 0, S);
-    out.set(Engine.grainCombine(pre, W, h, 4, 255, S, noise), y * W * 4);
-    self.postMessage({ progress: (y + h) / H });
-  }
-  self.postMessage({ done: true, buf: out.buffer }, [out.buffer]);
+  if (poolMessage(e.data)) return;
+  streamMessage(e.data);
 };
 </script>
 
@@ -1157,7 +1170,7 @@ self.onmessage = (e) => {
       "glow.hint": "Highlights bloom outward with a faint warm halo.",
       "soft.hint": "Takes the edge off digital crispness.",
       "result.hint": "Long-press the image (phone) or right-click it (computer) to save it.", close: "Close",
-      "save.photos": "Save to Photos", download: "Download", "save.all": "Save all {n}", "save.this": "Save this photo only", "apply.all": "Apply to all", "reset.hint": "Double-tap to go back to the default.", "hint.zoom": "Double-tap the photo to see it at 100%. Pinch to zoom.", "hint.zoom.mouse": "Double-click the photo to see it at 100%. Scroll to zoom.", "apply.all.tip": "Give every photo the settings shown now", "st.applied": "All {n} photos now use these settings.", "batch.tag": "{n} photos, same settings", prev: "Previous photo", next: "Next photo", "st.batch": "Photo {i} of {n}…", "st.batchdone": "Saved {n} photos ({s} s).", "st.batchfail": " {m} couldn't be processed.", "batch.hint": "{n} photos are ready. Tap Save to Photos.",
+      "save.photos": "Save to Photos", download: "Download", "save.all": "Save all {n}", "save.this": "Save this photo only", "apply.all": "Apply to all", "hint.zoom": "Double-tap the photo to see it at 100%. Pinch to zoom.", "hint.zoom.mouse": "Double-click the photo to see it at 100%. Scroll to zoom.", "apply.all.tip": "Give every photo the settings shown now", "st.applied": "All {n} photos now use these settings.", "batch.tag": "{n} photos, same settings", prev: "Previous photo", next: "Next photo", "st.batch": "Photo {i} of {n}…", "st.batchdone": "Saved {n} photos ({s} s).", "st.batchfail": " {m} couldn't be processed.", "batch.hint": "{n} photos are ready. Tap Save to Photos.",
       "a.view": "Photo with grain", "a.mini": "Whole photo. Tap to move around.", "a.sheet": "Grain settings",
       "st.notimage": "That file isn't an image. Open a JPEG, PNG or HEIC photo.", "st.opening": "Opening…",
       "st.cantopen": "This browser couldn't open that photo. Try a JPEG or PNG.",
@@ -1174,7 +1187,7 @@ self.onmessage = (e) => {
       "glow.hint": "밝은 부분이 따뜻한 빛으로 은은하게 번져요.",
       "soft.hint": "디지털 특유의 날카로움을 덜어줘요.",
       "result.hint": "사진을 길게 누르거나(휴대폰) 우클릭해서(컴퓨터) 저장하세요.", close: "닫기",
-      "save.photos": "사진에 저장", download: "다운로드", "save.all": "{n}장 모두 저장", "save.this": "이 사진만 저장", "apply.all": "전체 적용", "reset.hint": "두 번 누르면 기본값으로 돌아가요.", "hint.zoom": "사진을 두 번 누르면 100%로 확대돼요. 두 손가락으로 벌려도 돼요.", "hint.zoom.mouse": "사진을 더블클릭하면 100%로 확대돼요. 스크롤로도 확대할 수 있어요.", "apply.all.tip": "지금 설정을 모든 사진에 똑같이 적용해요", "st.applied": "{n}장 모두 지금 설정으로 맞췄어요.", "batch.tag": "{n}장 · 같은 설정으로 저장", prev: "이전 사진", next: "다음 사진", "st.batch": "{i}/{n}장 처리 중…", "st.batchdone": "{n}장 저장했어요 ({s}초).", "st.batchfail": " {m}장은 처리하지 못했어요.", "batch.hint": "{n}장 준비됐어요. 사진에 저장을 눌러주세요.",
+      "save.photos": "사진에 저장", download: "다운로드", "save.all": "{n}장 모두 저장", "save.this": "이 사진만 저장", "apply.all": "전체 적용", "hint.zoom": "사진을 두 번 누르면 100%로 확대돼요. 두 손가락으로 벌려도 돼요.", "hint.zoom.mouse": "사진을 더블클릭하면 100%로 확대돼요. 스크롤로도 확대할 수 있어요.", "apply.all.tip": "지금 설정을 모든 사진에 똑같이 적용해요", "st.applied": "{n}장 모두 지금 설정으로 맞췄어요.", "batch.tag": "{n}장 · 같은 설정으로 저장", prev: "이전 사진", next: "다음 사진", "st.batch": "{i}/{n}장 처리 중…", "st.batchdone": "{n}장 저장했어요 ({s}초).", "st.batchfail": " {m}장은 처리하지 못했어요.", "batch.hint": "{n}장 준비됐어요. 사진에 저장을 눌러주세요.",
       "a.view": "그레인이 적용된 사진", "a.mini": "전체 사진. 눌러서 이동해요.", "a.sheet": "그레인 설정",
       "st.notimage": "이미지 파일이 아니에요. JPEG, PNG, HEIC 사진을 열어주세요.", "st.opening": "여는 중…",
       "st.cantopen": "이 브라우저에서 사진을 열 수 없어요. JPEG나 PNG로 시도해보세요.",
@@ -1191,7 +1204,7 @@ self.onmessage = (e) => {
       "glow.hint": "明るい部分が暖かい光でふんわりにじみます。",
       "soft.hint": "デジタル特有のシャープさを抑えます。",
       "result.hint": "画像を長押し（スマホ）または右クリック（パソコン）で保存してください。", close: "閉じる",
-      "save.photos": "写真に保存", download: "ダウンロード", "save.all": "{n}枚すべて保存", "save.this": "この写真だけ保存", "apply.all": "すべてに適用", "reset.hint": "ダブルタップで初期値に戻ります。", "hint.zoom": "写真をダブルタップすると100%で表示します。ピンチでも拡大できます。", "hint.zoom.mouse": "写真をダブルクリックすると100%で表示します。スクロールでも拡大できます。", "apply.all.tip": "今の設定をすべての写真に適用します", "st.applied": "{n}枚すべてをこの設定にしました。", "batch.tag": "{n}枚・同じ設定で保存", prev: "前の写真", next: "次の写真", "st.batch": "{i}/{n}枚目を処理中…", "st.batchdone": "{n}枚保存しました（{s}秒）。", "st.batchfail": " {m}枚は処理できませんでした。", "batch.hint": "{n}枚の準備ができました。「写真に保存」を押してください。",
+      "save.photos": "写真に保存", download: "ダウンロード", "save.all": "{n}枚すべて保存", "save.this": "この写真だけ保存", "apply.all": "すべてに適用", "hint.zoom": "写真をダブルタップすると100%で表示します。ピンチでも拡大できます。", "hint.zoom.mouse": "写真をダブルクリックすると100%で表示します。スクロールでも拡大できます。", "apply.all.tip": "今の設定をすべての写真に適用します", "st.applied": "{n}枚すべてをこの設定にしました。", "batch.tag": "{n}枚・同じ設定で保存", prev: "前の写真", next: "次の写真", "st.batch": "{i}/{n}枚目を処理中…", "st.batchdone": "{n}枚保存しました（{s}秒）。", "st.batchfail": " {m}枚は処理できませんでした。", "batch.hint": "{n}枚の準備ができました。「写真に保存」を押してください。",
       "a.view": "グレインを加えた写真", "a.mini": "写真全体。タップで移動します。", "a.sheet": "グレイン設定",
       "st.notimage": "画像ファイルではありません。JPEG・PNG・HEICの写真を開いてください。", "st.opening": "開いています…",
       "st.cantopen": "このブラウザでは写真を開けませんでした。JPEGかPNGでお試しください。",
@@ -1212,9 +1225,6 @@ self.onmessage = (e) => {
   };
   document.documentElement.lang = LANG;
   document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
-  // every slider hint ends with the same reset line
-  const resetHint = t("reset.hint");
-  for (const k of ["amount.hint", "glow.hint", "soft.hint"]) { const el = document.querySelector(`[data-i18n="${k}"]`); if (el) { const sp = document.createElement("span"); sp.className = "reset"; sp.textContent = resetHint; el.append(sp); } }
   document.querySelectorAll("[data-i18n-title]").forEach((el) => { el.title = t(el.dataset.i18nTitle); });
   document.querySelectorAll("[data-i18n-aria]").forEach((el) => { el.setAttribute("aria-label", t(el.dataset.i18nAria)); });
   document.querySelectorAll("[data-i18n-alt]").forEach((el) => { el.alt = t(el.dataset.i18nAlt); });
@@ -1811,6 +1821,67 @@ self.onmessage = (e) => {
     worker = new Worker(URL.createObjectURL(new Blob([code], { type: "text/javascript" })));
     return worker;
   }
+  // ---- worker pool: one photo split into bands across cores; each band gets its effects, grain and JPEG there ----
+  let pool = null, jobSeq = 0;
+  const workerURL = (() => { let u = null; return () => u || (u = URL.createObjectURL(new Blob([$("engine-src").textContent + "\nself.Engine = Engine; self.Efx = Efx;\n" + $("worker-src").textContent], { type: "text/javascript" }))); })();
+  // iOS reports at most 2 to 4 cores whatever the phone has; recent iPhones have 6, so use 4 there
+  const POOL_N = IOS ? 4 : Math.max(2, Math.min(8, (navigator.hardwareConcurrency || 4) - 1));
+  function getPool() { return pool || (pool = Array.from({ length: POOL_N }, () => new Worker(workerURL()))); }
+  function killPool() { if (pool) pool.forEach((w) => w.terminate()); pool = null; }
+  const BAND = 256;                                         // rows per band: a multiple of 16 (one JPEG restart interval)
+  // src: anything drawImage takes (decoded photo or canvas), W x H. Bands are read one at a time from it, so no full-size
+  // canvas or pixel buffer is ever made. Grain is a per-pixel hash, so the result is the same as one pass, pixel for pixel.
+  async function poolJpeg(src, W, H, o, glow, onProgress) {
+    const P = getPool(), id = ++jobSeq, E = Efx.efxSettings(o, W, H), M = E.active ? E.margin : 0;
+    const n = Math.ceil(H / BAND), ri = n > 1 ? Math.ceil(W / 16) * (BAND / 16) : 0;
+    const c = document.createElement("canvas"), g = c.getContext("2d", { willReadFrequently: true }); c.width = W;
+    const read = (top, bot) => {
+      if (c.height !== bot - top) c.height = bot - top; else g.clearRect(0, 0, W, bot - top);
+      g.drawImage(src, 0, top, W, bot - top, 0, 0, W, bot - top);
+      return g.getImageData(0, 0, W, bot - top).data.buffer;
+    };
+    const segs = new Array(n);
+    let header = null;
+    try {
+      await new Promise((resolve, reject) => {
+        let next = 0, done = 0, failed = false;
+        const fail = (e) => { if (!failed) { failed = true; reject(e); } };
+        const finish = () => { if (done === n && header) { P.forEach((x) => x.postMessage({ type: "jobEnd", id })); resolve(); } };
+        const send = (w) => {
+          if (next >= n || failed) return;
+          const i = next++, y = i * BAND, h = Math.min(BAND, H - y), top = Math.max(0, y - M), bot = Math.min(H, y + h + M);
+          const buf = read(top, bot);
+          w.postMessage({ type: "band", id, y, h, top, bot, buf }, [buf]);
+        };
+        P.forEach((w, k) => {
+          w.onerror = fail;
+          w.onmessage = (e) => {
+            const m = e.data; if (m.id !== id || failed) return;
+            if (m.hdr) { header = new Uint8Array(m.hdr); finish(); return; }
+            if (!m.band) return;
+            segs[m.y / BAND] = new Uint8Array(m.buf);
+            onProgress(++done / n);
+            if (done === n) finish(); else send(w);
+          };
+          const gl = glow && { ...glow, data: glow.data.slice() };
+          w.postMessage({ type: "job", id, W, H, opts: o, glow: gl, jpeg: true, ri: k === 0 ? ri : undefined }, gl ? [gl.data.buffer] : []);
+        });
+        P.forEach((w) => { send(w); send(w); });              // two bands queued per worker: no idle gap between them
+      });
+    } finally { c.width = c.height = 0; }
+    // header + segment 0 + RST0 + segment 1 + RST1 ... + EOI
+    let total = header.length + 2 + 2 * (n - 1); for (const sgm of segs) total += sgm.length;
+    const out = new Uint8Array(total); let p = 0;
+    out.set(header, p); p += header.length;
+    for (let i = 0; i < n; i++) { out.set(segs[i], p); p += segs[i].length; if (i < n - 1) { out[p++] = 0xff; out[p++] = 0xd0 + (i & 7); } }
+    out[p++] = 0xff; out[p++] = 0xd9;
+    return new Blob([out], { type: "image/jpeg" });
+  }
+  // fast path first; if a worker fails (memory), the old single-worker path takes over
+  async function renderAny(src, W, H, o, glow, onProgress) {
+    try { return await poolJpeg(src, W, H, o, glow, onProgress); }
+    catch (e) { killPool(); return renderStream(src, W, H, o, glow && { ...glow, data: glow.data.slice() }, onProgress); }
+  }
   async function decodeFull(file) {
     try { return await createImageBitmap(file, { imageOrientation: "from-image" }); }
     catch (e) {
@@ -1853,25 +1924,6 @@ self.onmessage = (e) => {
       c.width = c.height = 0;
     }
   }
-  // Whole image in one go (fits this device's canvas limit): grain in the worker, JPEG by the browser's fast native encoder.
-  async function renderWhole(img, W, H, o, glow, onProgress, onEncode) {
-    const w = getWorker();
-    const buf = await new Promise((resolve, reject) => {
-      w.onmessage = (e) => {
-        if (e.data.progress != null) onProgress(e.data.progress);
-        if (e.data.done) resolve(e.data.buf);
-      };
-      w.onerror = (e) => reject(e);
-      w.postMessage({ buf: img.data.buffer, W, H, opts: o, glow }, glow ? [img.data.buffer, glow.data.buffer] : [img.data.buffer]);
-    });
-    if (onEncode) onEncode();
-    const c = document.createElement("canvas"); c.width = W; c.height = H;
-    c.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(buf), W, H), 0, 0);
-    const blob = await new Promise((res) => c.toBlob(res, "image/jpeg", 0.95));
-    c.width = c.height = 0;
-    if (!blob) throw new Error("encode");
-    return blob;
-  }
   // glow map of the current preview photo, scaled to a W x H render (a copy: the worker takes the buffer)
   const curGlow = (o, W, H) => {
     if (!(o.glow > 0)) return null;
@@ -1889,23 +1941,14 @@ self.onmessage = (e) => {
     return gm;
   }
   // One photo file of a batch, at its original size, with the given settings and its own grain pattern.
-  async function renderFile(file, o, onProgress) {
-    const src = await decodeFull(file);
+  async function renderFile(file, o, onProgress, decoded) {
+    const src = await (decoded || decodeFull(file));
     try {
       const W = src.width || src.naturalWidth, H = src.height || src.naturalHeight;
       const name = file.name.replace(/\.[^.]+$/, "");
       const oo = { ...o, seed: photoSeed(name, W, H) };   // same pattern this photo would get when opened alone
       const glow = o.glow > 0 ? glowFor(src, W, H) : null;
-      let blob = null;
-      if (W * H <= MAX_PIXELS) {
-        try {
-          const c = document.createElement("canvas"); c.width = W; c.height = H;
-          const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(src, 0, 0);
-          const img = g.getImageData(0, 0, W, H); c.width = c.height = 0;
-          blob = await renderWhole(img, W, H, oo, glow && { ...glow, data: glow.data.slice() }, onProgress);
-        } catch (e) { if (worker) { worker.terminate(); worker = null; } blob = null; }
-      }
-      if (!blob) blob = await renderStream(src, W, H, oo, glow, onProgress);
+      const blob = await renderAny(src, W, H, oo, glow, onProgress);
       return new File([blob], fileName(name, o), { type: "image/jpeg" });
     } finally {
       if (src.close) src.close();
@@ -1956,10 +1999,14 @@ self.onmessage = (e) => {
     st.bset[st.bi] = snap();
     const files = st.batch, n = files.length, out = [], t0 = performance.now();
     let failed = 0;
+    // the next photo is decoded while this one is processed, so the cores never wait for it
+    const decode = (f) => { const p = decodeFull(f); p.catch(() => {}); return p; };
+    let ahead = decode(files[0]);
     for (let i = 0; i < n; i++) {
       setStatus(t("st.batch", { i: i + 1, n }), true);
-      try { out.push(await renderFile(files[i], optsFrom(st.bset[i]), (p) => { fill.style.width = Math.round(((i + p) / n) * 100) + "%"; })); }
-      catch (e) { failed++; if (worker) { worker.terminate(); worker = null; } }
+      const mine = ahead; ahead = i + 1 < n ? decode(files[i + 1]) : null;
+      try { out.push(await renderFile(files[i], optsFrom(st.bset[i]), (p) => { fill.style.width = Math.round(((i + p) / n) * 100) + "%"; }, mine)); }
+      catch (e) { failed++; killPool(); if (worker) { worker.terminate(); worker = null; } }
       fill.style.width = Math.round(((i + 1) / n) * 100) + "%";
     }
     if (!out.length) { setStatus(t("st.failed")); return; }
@@ -1992,11 +2039,11 @@ self.onmessage = (e) => {
       if (st.full) {
         try {
           const src = await decodeFull(st.full.file);
-          try { blob = await renderStream(src, st.full.W, st.full.H, o, curGlow(o, st.full.W, st.full.H), prog); }
+          try { blob = await renderAny(src, st.full.W, st.full.H, o, curGlow(o, st.full.W, st.full.H), prog); }
           finally { if (src.close) src.close(); }
-        } catch (e) { if (worker) { worker.terminate(); worker = null; } blob = null; } // fall back to the preview size below
+        } catch (e) { killPool(); if (worker) { worker.terminate(); worker = null; } blob = null; } // fall back to the preview size below
       }
-      if (!blob) blob = await renderWhole(st.sctx.getImageData(0, 0, W, H), W, H, o, curGlow(o, W, H), prog, () => setStatus(t("st.encoding"), true));
+      if (!blob) blob = await renderAny(st.src, W, H, o, curGlow(o, W, H), prog);
       const secs = ((performance.now() - t0) / 1000).toFixed(1);
       const file = new File([blob], fileName(st.name, o), { type: "image/jpeg" });
       await deliver([file], navigator.maxTouchPoints > 0 && !downloads ? t("st.done", { s: secs }) : t("st.saved", { f: file.name, s: secs }));
