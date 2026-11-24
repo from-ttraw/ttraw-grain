@@ -1290,7 +1290,7 @@ self.onmessage = (e) => {
     return (x >>> 1) | 1;
   }
   function setSource(canvas, name, sample, scaledFrom, full) {
-    st.src = canvas; st.sctx = canvas.getContext("2d", { willReadFrequently: true });
+    st.src = canvas; st.sctx = canvas.getContext("2d");
     st.W = canvas.width; st.H = canvas.height; st.name = name; st.sample = sample; st.full = full || null;
     st.seed = photoSeed(name, full ? full.W : st.W, full ? full.H : st.H); // one grain pattern per photo (from its original size)
     st.base = null; st.glow = null; buildMips(); setFit();
@@ -1298,15 +1298,18 @@ self.onmessage = (e) => {
     $("fsize").textContent = sample ? "" : st.batch ? `${st.bi + 1}/${st.batch.length}` : `${st.full ? st.full.W : st.W}×${st.full ? st.full.H : st.H}`;
     for (const id of ["bPrev", "bNext", "bApply"]) $(id).hidden = !st.batch;
     setStatus(scaledFrom ? t("st.resized", { w: st.W, h: st.H, o: scaledFrom }) : "");
-    schedule(true);
+    // show the new photo (plain, from the layer under the grain) at once; the grain is drawn a frame later
+    view.style.opacity = "0"; updateUnder(); drawn = null;
+    setTimeout(() => schedule(true), 16);
   }
 
-  async function openFile(file) {
+  async function openFile(file, decoded) {
     if (!file || !/^image\//.test(file.type || "image/")) { setStatus(t("st.notimage")); return; }
     setStatus(t("st.opening"), true);
     try {
-      let bmp;
-      try { bmp = await createImageBitmap(file, { imageOrientation: "from-image" }); }
+      let bmp = null;
+      if (decoded) { try { bmp = await decoded; } catch (e) { bmp = null; } }      // decoded ahead of time (batch)
+      if (!bmp) try { bmp = await createImageBitmap(file, { imageOrientation: "from-image" }); }
       catch (e) {
         bmp = await new Promise((res, rej) => {
           const url = URL.createObjectURL(file), im = new Image();
@@ -1320,7 +1323,7 @@ self.onmessage = (e) => {
         const s = Math.sqrt(MAX_PIXELS / (w * h)); scaledFrom = `${w} × ${h}`; w = Math.floor(w * s); h = Math.floor(h * s);
       }
       const c = document.createElement("canvas"); c.width = w; c.height = h;
-      const g = c.getContext("2d", { willReadFrequently: true });
+      const g = c.getContext("2d");                          // GPU canvas: drawing it and its smaller copies is much faster
       g.imageSmoothingQuality = "high"; g.drawImage(bmp, 0, 0, w, h);
       if (bmp.close) bmp.close();
       setSource(c, file.name.replace(/\.[^.]+$/, ""), false, scaledFrom, full);
@@ -1332,10 +1335,20 @@ self.onmessage = (e) => {
   function openFiles(list) {
     const files = [...(list || [])].filter((f) => /^image\//.test(f.type || "image/"));
     if (!files.length) { setStatus(t("st.notimage")); return; }
-    st.batch = files.length > 1 ? files : null; st.bi = 0;
+    st.batch = files.length > 1 ? files : null; st.bi = 0; dropAhead();
     // each photo keeps its own settings and undo history; all start from the settings shown now
     if (st.batch) { const now = snap(); st.bset = files.map(() => now); st.bhist = files.map(() => ({ hist: [now], hpos: 0 })); }
-    openFile(files[0]);
+    openFile(files[0]).then(() => prefetch(1));
+  }
+  // the photo you will most likely open next is decoded in the background, so switching only has to draw it
+  function dropAhead() { if (st.ahead) { st.ahead.p.then((b) => b && b.close && b.close(), () => {}); st.ahead = null; } }
+  function prefetch(step) {
+    if (!st.batch || st.batch.length < 2) return;
+    const n = st.batch.length, j = (st.bi + step + n) % n;
+    if (st.ahead && st.ahead.i === j) return;
+    dropAhead();
+    const p = createImageBitmap(st.batch[j], { imageOrientation: "from-image" }); p.catch(() => {});
+    st.ahead = { i: j, p };
   }
   // look through the batch with the same settings: arrows, or swipe left/right on the photo while it fits the screen
   async function showBatch(step) {
@@ -1346,7 +1359,10 @@ self.onmessage = (e) => {
     st.bi = i; ({ hist, hpos } = st.bhist[i]);                        // and bring back the next one's
     restore(st.bset[i]); updUndo();
     $("fsize").textContent = `${i + 1}/${n}`;
-    try { await openFile(st.batch[i]); } finally { st.switching = false; }
+    let pre = null;
+    if (st.ahead && st.ahead.i === i) { pre = st.ahead.p; st.ahead = null; } else dropAhead();
+    try { await openFile(st.batch[i], pre); } finally { st.switching = false; }
+    prefetch(step);                                                    // keep going the same way: get the next one ready
   }
   $("bPrev").addEventListener("click", () => showBatch(-1));
   $("bNext").addEventListener("click", () => showBatch(1));
