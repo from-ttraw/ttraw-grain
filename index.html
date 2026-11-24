@@ -276,7 +276,7 @@ frame</span></label>
         <label><input type="radio" name="color" id="colorC" value="color" checked><span data-i18n="color.color">Color</span></label>
         <label><input type="radio" name="color" id="colorBW" value="bw"><span data-i18n="color.bw">B&amp;W</span></label>
       </div>
-      <div class="hint" data-i18n="color.sub">Color negative or black and white</div>
+      <div class="hint" data-i18n="color.sub">Color mixes tinted specks into the grain; B&amp;W keeps it grey.</div>
     </div>
     <div class="pane" data-pane="glow" role="tabpanel" hidden>
       <div class="pane-head"><span data-i18n="glow">Glow</span><input class="value" type="number" id="glowNum" min="0" max="100" step="1" value="0" aria-label="Glow value"></div>
@@ -1165,7 +1165,7 @@ self.onmessage = (e) => {
       amount: "Amount", iso: "ISO", color: "Color", frame: "Frame", glow: "Glow", soft: "Soft",
       "amount.head": "Grain amount", "amount.hint": "Higher means denser, coarser grain.",
       "iso.head": "Film speed", "iso.sub": "Higher ISO, stronger grain with more colour.",
-      "color.head": "Grain color", "color.sub": "Color negative or black and white", "color.color": "Color", "color.bw": "B&W",
+      "color.head": "Grain color", "color.sub": "Color mixes tinted specks into the grain; B&W keeps it grey.", "color.color": "Color", "color.bw": "B&W",
       "frame.head": "Frame size", "frame.sub": "Half frame enlarges the grain", "frame.full": "Full", "frame.half": "Half", "frame.two": "Half\nframe",
       "glow.hint": "Highlights bloom outward with a faint warm halo.",
       "soft.hint": "Takes the edge off digital crispness.",
@@ -1182,7 +1182,7 @@ self.onmessage = (e) => {
       amount: "양", iso: "감도", color: "색", frame: "프레임", glow: "글로우", soft: "소프트",
       "amount.head": "그레인 양", "amount.hint": "높일수록 입자가 진하고 거칠어져요.",
       "iso.head": "필름 감도", "iso.sub": "감도가 높을수록 그레인이 진하고 색 얼룩이 많아요.",
-      "color.head": "그레인 색", "color.sub": "컬러 네거티브 또는 흑백", "color.color": "컬러", "color.bw": "흑백",
+      "color.head": "그레인 색", "color.sub": "컬러는 색이 섞인 입자, 흑백은 회색 입자예요.", "color.color": "컬러", "color.bw": "흑백",
       "frame.head": "프레임 크기", "frame.sub": "하프 프레임은 입자가 더 커요", "frame.full": "풀", "frame.half": "하프", "frame.two": "하프\n프레임",
       "glow.hint": "밝은 부분이 따뜻한 빛으로 은은하게 번져요.",
       "soft.hint": "디지털 특유의 날카로움을 덜어줘요.",
@@ -1199,7 +1199,7 @@ self.onmessage = (e) => {
       amount: "量", iso: "感度", color: "色", frame: "フレーム", glow: "グロー", soft: "ソフト",
       "amount.head": "グレインの量", "amount.hint": "上げるほど粒子が濃く、粗くなります。",
       "iso.head": "フィルム感度", "iso.sub": "感度が高いほど粒子が強く、色ノイズが増えます。",
-      "color.head": "グレインの色", "color.sub": "カラーネガまたはモノクロ", "color.color": "カラー", "color.bw": "モノクロ",
+      "color.head": "グレインの色", "color.sub": "カラーは色の混じった粒子、モノクロはグレーの粒子です。", "color.color": "カラー", "color.bw": "モノクロ",
       "frame.head": "フレームサイズ", "frame.sub": "ハーフフレームは粒子が大きくなります", "frame.full": "フル", "frame.half": "ハーフ", "frame.two": "ハーフ\nフレーム",
       "glow.hint": "明るい部分が暖かい光でふんわりにじみます。",
       "soft.hint": "デジタル特有のシャープさを抑えます。",
