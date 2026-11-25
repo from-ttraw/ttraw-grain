@@ -1845,6 +1845,18 @@ self.onmessage = (e) => {
     el.setAttribute("inputmode", "numeric");
     el.addEventListener("keydown", (e) => { if (e.key === "Enter") el.blur(); });
   });
+  // the keyboard covers the bottom of the screen: while a number field is being typed in, lift the sheet above it
+  const sheetBox = $("sheet");
+  function liftSheet() {
+    const vv = window.visualViewport, typing = document.activeElement && document.activeElement.classList.contains("value");
+    if (!vv || !typing) { sheetBox.style.transform = ""; return; }
+    const covered = Math.max(0, document.documentElement.clientHeight - (vv.height + vv.offsetTop));
+    const wide = matchMedia("(min-width: 720px)").matches ? "translateX(-50%) " : ""; // the wide layout centres the sheet with a transform
+    sheetBox.style.transform = covered > 40 ? `${wide}translateY(${-Math.round(covered)}px)` : "";
+  }
+  if (window.visualViewport) { visualViewport.addEventListener("resize", liftSheet); visualViewport.addEventListener("scroll", liftSheet); }
+  document.addEventListener("focusin", () => setTimeout(liftSheet, 50));
+  document.addEventListener("focusout", () => setTimeout(liftSheet, 50));
 
   // Updates without reinstalling: on launch and whenever the app comes back to the front, ask the site (bypassing
   // every cache) for its build stamp; if it is newer than this page, reload once. One small request, no reload otherwise.
