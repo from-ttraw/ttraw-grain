@@ -187,6 +187,8 @@
   .seg input:checked + span { background: var(--fg); color: var(--bg); font-weight: 600; }
   .seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
   .seg span.two { white-space: pre-line; font-family: var(--font-body); font-size: 12px; line-height: 1.15; }
+  .pane-head .seg.mini { flex: 0 0 auto; margin-left: auto; margin-right: 10px; gap: 4px; }
+  .seg.mini span { height: 26px; padding: 0 10px; font-size: 12px; border-radius: 13px; }
   .seg.mono span { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
   /* save fallback */
@@ -279,9 +281,14 @@ frame</span></label>
       <div class="hint" data-i18n="color.sub">Color mixes tinted specks into the grain; B&amp;W keeps it grey.</div>
     </div>
     <div class="pane" data-pane="glow" role="tabpanel" hidden>
-      <div class="pane-head"><span data-i18n="glow">Glow</span><input class="value" type="number" id="glowNum" min="0" max="100" step="1" value="0" aria-label="Glow value"></div>
+      <div class="pane-head"><span data-i18n="glow">Glow</span>
+        <div class="seg mini" role="radiogroup" data-i18n-aria="glow.mode" aria-label="Glow type">
+          <label><input type="radio" name="gmode" value="bloom" checked><span data-i18n="glow.bloom">Bloom</span></label>
+          <label><input type="radio" name="gmode" value="halation"><span data-i18n="glow.halation">Halation</span></label>
+        </div>
+        <input class="value" type="number" id="glowNum" min="0" max="100" step="1" value="0" aria-label="Glow value"></div>
       <input type="range" id="glow" min="0" max="100" step="1" value="0" aria-label="Glow">
-      <div class="hint" data-i18n="glow.hint">Highlights bloom outward with a faint warm halo.</div>
+      <div class="hint" id="glowHint" data-i18n="glow.hint">Highlights bloom outward with a faint warm halo.</div>
     </div>
     <div class="pane" data-pane="soft" role="tabpanel" hidden>
       <div class="pane-head"><span data-i18n="soft">Soft</span><input class="value" type="number" id="softNum" min="0" max="100" step="1" value="0" aria-label="Soft value"></div>
@@ -637,7 +644,15 @@ const Efx = ((G) => {
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const pct = (v) => clamp01((Number(v) || 0) / 100);
 
-const GLOW = { threshold: 0.40, knee: 0.95, strength: 0.65, radiusFrac: 0.010, tint: [1.0, 0.88, 0.74] };
+// Bloom: highlights spread wide with a faint warm tint (matches the wide glow measured around large lights).
+// Halation: a narrow orange-red ring around very bright highlights, measured on the user's scans (2026-11-25, 18 clear
+// cases out of 334 light sources): ring colour R:G:B = 1 : 0.43 : 0.10, red falling to ~0.16 of its edge value by 14 scan px
+// (gaussian sigma ~11 scan px of a 3089 px scan). Default slider 50 ≈ the measured strength.
+const GLOW = {
+  bloom: { threshold: 0.40, knee: 0.95, strength: 0.65, radiusFrac: 0.010, tint: [1.0, 0.88, 0.74] },
+  halation: { threshold: 0.80, knee: 0.98, strength: 3.0, sigmaFrac: 11 / 3089, tint: [1.0, 0.43, 0.10] },
+};
+const glowMode = (o) => (o && o.glowMode === "halation" ? "halation" : "bloom");
 
 function efxSettings(opts, W, H) {
   const scale = Math.max(W, H) / G.SCAN_LONG_SIDE;
@@ -654,9 +669,9 @@ function efxSettings(opts, W, H) {
   return {
     soft, degrade, glow, kAll, kChroma, margin,
     lift: degrade * 0.025,
-    glowStrength: glow * GLOW.strength,
+    glowStrength: glow * GLOW[glowMode(opts)].strength, glowMode: glowMode(opts),
     active: !!(kAll || kChroma || degrade > 0 || glow > 0),
-    key: `${opts.soft | 0}/${opts.degrade | 0}/${opts.glow | 0}`,
+    key: `${opts.soft | 0}/${opts.degrade | 0}/${opts.glow | 0}/${glowMode(opts)}`,
   };
 }
 
@@ -742,28 +757,35 @@ function blurPlane(p, w, h, kern) {
  * Glow map from a low-resolution copy of the whole image (lw x lh, chunky, comp, 0..maxVal).
  * Independent of the Glow slider, so it is built once per image and reused.
  */
-function buildGlowMap(low, lw, lh, comp, maxVal, W, H) {
-  const n = lw * lh;
+function buildGlowMap(low, lw, lh, comp, maxVal, W, H, mode) {
+  const n = lw * lh, P = GLOW[mode === "halation" ? "halation" : "bloom"], hal = P === GLOW.halation;
   const planes = [new Float32Array(n), new Float32Array(n), new Float32Array(n)];
   const inv = 1 / maxVal;
   for (let i = 0, p = 0; i < n; i++, p += comp) {
     const r = low[p] * inv, g = low[p + 1] * inv, b = low[p + 2] * inv;
     const Y = 0.299 * r + 0.587 * g + 0.114 * b;
-    let t = clamp01((Y - GLOW.threshold) / (GLOW.knee - GLOW.threshold));
+    let t = clamp01((Y - P.threshold) / (P.knee - P.threshold));
     t = t * t * (3 - 2 * t);
+    if (hal) { planes[0][i] = t; continue; }                 // halation: how much over-exposed light there is, any colour
     planes[0][i] = r * t; planes[1][i] = g * t; planes[2][i] = b * t;
   }
-  const sigma = Math.max(1, GLOW.radiusFrac * Math.max(lw, lh));
-  const kSmall = blurKernel(sigma), kWide = blurKernel(sigma * 3);
   const out = new Float32Array(n * 3);
+  if (hal) {                                                 // one narrow spread, coloured like the measured ring
+    const a = planes[0];
+    blurPlane(a, lw, lh, blurKernel(Math.max(0.8, P.sigmaFrac * Math.max(lw, lh))));
+    for (let i = 0; i < n; i++) for (let c = 0; c < 3; c++) out[i * 3 + c] = a[i] * P.tint[c];
+    return { data: out, lw, lh, sx: lw / W, sy: lh / H, mode: "halation" };
+  }
+  const sigma = Math.max(1, P.radiusFrac * Math.max(lw, lh));
+  const kSmall = blurKernel(sigma), kWide = blurKernel(sigma * 3);
   for (let c = 0; c < 3; c++) {
     const a = planes[c], b = a.slice();
     blurPlane(a, lw, lh, kSmall);
     blurPlane(b, lw, lh, kWide);
-    const t = GLOW.tint[c];
+    const t = P.tint[c];
     for (let i = 0; i < n; i++) out[i * 3 + c] = (0.6 * a[i] + 0.4 * b[i]) * t;
   }
-  return { data: out, lw, lh, sx: lw / W, sy: lh / H };
+  return { data: out, lw, lh, sx: lw / W, sy: lh / H, mode: "bloom" };
 }
 
 function sampleGlow(gm, x, y, outRGB) {
@@ -1167,7 +1189,7 @@ self.onmessage = (e) => {
       "iso.head": "Film speed", "iso.sub": "Higher ISO, stronger grain with more colour.",
       "color.head": "Grain color", "color.sub": "Color mixes tinted specks into the grain; B&W keeps it grey.", "color.color": "Color", "color.bw": "B&W",
       "frame.head": "Frame size", "frame.sub": "Half frame enlarges the grain", "frame.full": "Full", "frame.half": "Half", "frame.two": "Half\nframe",
-      "glow.hint": "Highlights bloom outward with a faint warm halo.",
+      "glow.hint": "Highlights bloom outward with a faint warm halo.", "glow.hint.h": "A thin red-orange ring forms around bright lights, as on film.", "glow.bloom": "Bloom", "glow.halation": "Halation", "glow.mode": "Glow type",
       "soft.hint": "Takes the edge off digital crispness.",
       "result.hint": "Long-press the image (phone) or right-click it (computer) to save it.", close: "Close",
       "save.photos": "Save to Photos", download: "Download", "save.all": "Save all {n}", "save.this": "Save this photo only", "apply.all": "Apply to all", "hint.zoom": "Double-tap the photo to see it at 100%. Pinch to zoom.", "hint.zoom.mouse": "Double-click the photo to see it at 100%. Scroll to zoom.", "apply.all.tip": "Give every photo the settings shown now", "st.applied": "All {n} photos now use these settings.", "batch.tag": "{n} photos, same settings", prev: "Previous photo", next: "Next photo", "st.batch": "Photo {i} of {n}…", "st.batchdone": "Saved {n} photos ({s} s).", "st.batchfail": " {m} couldn't be processed.", "batch.hint": "{n} photos are ready. Tap Save to Photos.",
@@ -1184,7 +1206,7 @@ self.onmessage = (e) => {
       "iso.head": "필름 감도", "iso.sub": "감도가 높을수록 그레인이 진하고 색 얼룩이 많아요.",
       "color.head": "그레인 색", "color.sub": "컬러는 색이 섞인 입자, 흑백은 회색 입자예요.", "color.color": "컬러", "color.bw": "흑백",
       "frame.head": "프레임 크기", "frame.sub": "하프 프레임은 입자가 더 커요", "frame.full": "풀", "frame.half": "하프", "frame.two": "하프\n프레임",
-      "glow.hint": "밝은 부분이 따뜻한 빛으로 은은하게 번져요.",
+      "glow.hint": "밝은 부분이 따뜻한 빛으로 은은하게 번져요.", "glow.hint.h": "밝은 빛 둘레에 필름 특유의 붉은 테가 생겨요.", "glow.bloom": "블룸", "glow.halation": "할레이션", "glow.mode": "글로우 종류",
       "soft.hint": "디지털 특유의 날카로움을 덜어줘요.",
       "result.hint": "사진을 길게 누르거나(휴대폰) 우클릭해서(컴퓨터) 저장하세요.", close: "닫기",
       "save.photos": "사진에 저장", download: "다운로드", "save.all": "{n}장 모두 저장", "save.this": "이 사진만 저장", "apply.all": "전체 적용", "hint.zoom": "사진을 두 번 누르면 100%로 확대돼요. 두 손가락으로 벌려도 돼요.", "hint.zoom.mouse": "사진을 더블클릭하면 100%로 확대돼요. 스크롤로도 확대할 수 있어요.", "apply.all.tip": "지금 설정을 모든 사진에 똑같이 적용해요", "st.applied": "{n}장 모두 지금 설정으로 맞췄어요.", "batch.tag": "{n}장 · 같은 설정으로 저장", prev: "이전 사진", next: "다음 사진", "st.batch": "{i}/{n}장 처리 중…", "st.batchdone": "{n}장 저장했어요 ({s}초).", "st.batchfail": " {m}장은 처리하지 못했어요.", "batch.hint": "{n}장 준비됐어요. 사진에 저장을 눌러주세요.",
@@ -1201,7 +1223,7 @@ self.onmessage = (e) => {
       "iso.head": "フィルム感度", "iso.sub": "感度が高いほど粒子が強く、色ノイズが増えます。",
       "color.head": "グレインの色", "color.sub": "カラーは色の混じった粒子、モノクロはグレーの粒子です。", "color.color": "カラー", "color.bw": "モノクロ",
       "frame.head": "フレームサイズ", "frame.sub": "ハーフフレームは粒子が大きくなります", "frame.full": "フル", "frame.half": "ハーフ", "frame.two": "ハーフ\nフレーム",
-      "glow.hint": "明るい部分が暖かい光でふんわりにじみます。",
+      "glow.hint": "明るい部分が暖かい光でふんわりにじみます。", "glow.hint.h": "明るい光のまわりにフィルム特有の赤いにじみが出ます。", "glow.bloom": "ブルーム", "glow.halation": "ハレーション", "glow.mode": "グローの種類",
       "soft.hint": "デジタル特有のシャープさを抑えます。",
       "result.hint": "画像を長押し（スマホ）または右クリック（パソコン）で保存してください。", close: "閉じる",
       "save.photos": "写真に保存", download: "ダウンロード", "save.all": "{n}枚すべて保存", "save.this": "この写真だけ保存", "apply.all": "すべてに適用", "hint.zoom": "写真をダブルタップすると100%で表示します。ピンチでも拡大できます。", "hint.zoom.mouse": "写真をダブルクリックすると100%で表示します。スクロールでも拡大できます。", "apply.all.tip": "今の設定をすべての写真に適用します", "st.applied": "{n}枚すべてをこの設定にしました。", "batch.tag": "{n}枚・同じ設定で保存", prev: "前の写真", next: "次の写真", "st.batch": "{i}/{n}枚目を処理中…", "st.batchdone": "{n}枚保存しました（{s}秒）。", "st.batchfail": " {m}枚は処理できませんでした。", "batch.hint": "{n}枚の準備ができました。「写真に保存」を押してください。",
@@ -1235,6 +1257,7 @@ self.onmessage = (e) => {
   const st = { src: null, sctx: null, W: 0, H: 0, name: "sample", sample: true, base: null, before: false, busy: false, full: null };
 
   const isoPick = () => document.querySelector('input[name="iso"]:checked').value;
+  const gmodePick = () => document.querySelector('input[name="gmode"]:checked').value;
   function opts() {
     return {
       amount: Number($("amount").value),
@@ -1242,6 +1265,7 @@ self.onmessage = (e) => {
       bw: document.querySelector('input[name="color"]:checked').value === "bw",
       half: isoPick() === "half", // half frame sits with the ISOs (the half rolls measured alike at 100 and 400)
       glow: Number($("glow").value),
+      glowMode: gmodePick(),
       soft: Number($("soft").value),
       seed: st.seed,
     };
@@ -1413,14 +1437,14 @@ self.onmessage = (e) => {
   }
   // glow map: built once per photo from a ~1024 px copy (the glow is wide and soft, full resolution adds nothing)
   function ensureGlow() {
-    if (st.glow) return st.glow;
+    if (st.glow && st.glow.mode === gmodePick()) return st.glow;
     let pick = mips[mips.length - 1];
     for (const m of mips) if (Math.max(m.width, m.height) >= 1024) pick = m;
     const sc = Math.min(1, 1024 / Math.max(pick.width, pick.height));
     const lw = Math.max(16, Math.round(pick.width * sc)), lh = Math.max(16, Math.round(pick.height * sc));
     const c = document.createElement("canvas"); c.width = lw; c.height = lh;
     const g = c.getContext("2d", { willReadFrequently: true }); g.imageSmoothingQuality = "high"; g.drawImage(pick, 0, 0, lw, lh);
-    st.glow = Efx.buildGlowMap(g.getImageData(0, 0, lw, lh).data, lw, lh, 4, 255, st.W, st.H);
+    st.glow = Efx.buildGlowMap(g.getImageData(0, 0, lw, lh).data, lw, lh, 4, 255, st.W, st.H, gmodePick());
     return st.glow;
   }
   function updateUnder() {
@@ -1491,7 +1515,7 @@ self.onmessage = (e) => {
   // film effects for the current view: at real pixels the same settings as the saved file;
   // zoomed out, Soft is scaled to the smaller display pixels and the glow map is sampled on the display grid
   function efxFor(b, o) {
-    const E = Efx.efxSettings({ soft: o.soft, glow: o.glow }, st.W, st.H);
+    const E = Efx.efxSettings({ soft: o.soft, glow: o.glow, glowMode: o.glowMode }, st.W, st.H);
     if (!E.active) return { E, gm: null };
     const gm = o.glow > 0 ? ensureGlow() : null;
     if (b.full) return { E, gm };
@@ -1574,7 +1598,7 @@ self.onmessage = (e) => {
     let out;
     if (st.before) out = b.data;
     else {
-      const efxKey = `${o.soft}/${o.glow}`, key = `${o.iso}/${o.bw}/${o.half}`;
+      const efxKey = `${o.soft}/${o.glow}/${o.glowMode}`, key = `${o.iso}/${o.bw}/${o.half}`;
       if (b.efxKey !== efxKey) {                         // Glow / Soft run before the grain, as on film
         const { E, gm } = efxFor(b, o);
         b.pre = E.active ? Efx.applyEfx(b.region.data, b.region.w, b.region.h, 4, 255, b.inner, b.full ? b.x : b.gx, b.full ? b.y : b.gy, E, gm) : b.data;
@@ -1750,6 +1774,9 @@ self.onmessage = (e) => {
     amountNum.value = v; amount.value = v; schedule(false);
   });
   document.querySelectorAll('input[name="iso"], input[name="color"]').forEach((el) => el.addEventListener("change", () => schedule(false)));
+  // glow type: the hint follows it; a different map is built (once per photo and type)
+  const glowHint = () => { $("glowHint").textContent = t(gmodePick() === "halation" ? "glow.hint.h" : "glow.hint"); };
+  document.querySelectorAll('input[name="gmode"]').forEach((el) => el.addEventListener("change", () => { glowHint(); schedule(false); }));
   for (const id of ["glow", "soft"]) {
     const r = $(id), n = $(id + "Num");
     r.addEventListener("input", () => { n.value = r.value; efxInput(); });
@@ -1758,7 +1785,7 @@ self.onmessage = (e) => {
   }
   /* ---------- undo / redo of settings ---------- */
   // every finished change (slider let go, number typed, choice tapped, double-tap reset) is one step back
-  const snap = () => JSON.stringify({ a: amount.value, g: $("glow").value, s: $("soft").value, i: isoPick(),
+  const snap = () => JSON.stringify({ a: amount.value, g: $("glow").value, gm: gmodePick(), s: $("soft").value, i: isoPick(),
     c: document.querySelector('input[name="color"]:checked').value });
   let hist = [snap()], hpos = 0;
   function updUndo() { $("undo").disabled = hpos <= 0; $("redo").disabled = hpos >= hist.length - 1; }
@@ -1772,6 +1799,7 @@ self.onmessage = (e) => {
     const o = JSON.parse(s);
     amount.value = amountNum.value = o.a;
     $("glow").value = $("glowNum").value = o.g; $("soft").value = $("softNum").value = o.s;
+    document.querySelector(`input[name="gmode"][value="${o.gm || "bloom"}"]`).checked = true; glowHint();
     document.querySelector(`input[name="iso"][value="${o.i}"]`).checked = true;
     document.querySelector(`input[name="color"][value="${o.c}"]`).checked = true;
     needBase = true; schedule(true);
@@ -1947,12 +1975,12 @@ self.onmessage = (e) => {
     return st.glow ? { ...st.glow, data: st.glow.data.slice(), sx: st.glow.lw / W, sy: st.glow.lh / H } : null;
   };
   // glow map of any decoded photo, from a ~1024 px copy (same as ensureGlow does for the preview)
-  function glowFor(src, W, H) {
+  function glowFor(src, W, H, mode) {
     const sc = Math.min(1, 1024 / Math.max(W, H));
     const lw = Math.max(16, Math.round(W * sc)), lh = Math.max(16, Math.round(H * sc));
     const c = document.createElement("canvas"); c.width = lw; c.height = lh;
     const g = c.getContext("2d", { willReadFrequently: true }); g.imageSmoothingQuality = "high"; g.drawImage(src, 0, 0, lw, lh);
-    const gm = Efx.buildGlowMap(g.getImageData(0, 0, lw, lh).data, lw, lh, 4, 255, W, H);
+    const gm = Efx.buildGlowMap(g.getImageData(0, 0, lw, lh).data, lw, lh, 4, 255, W, H, mode);
     c.width = c.height = 0;
     return gm;
   }
@@ -1963,7 +1991,7 @@ self.onmessage = (e) => {
       const W = src.width || src.naturalWidth, H = src.height || src.naturalHeight;
       const name = file.name.replace(/\.[^.]+$/, "");
       const oo = { ...o, seed: photoSeed(name, W, H) };   // same pattern this photo would get when opened alone
-      const glow = o.glow > 0 ? glowFor(src, W, H) : null;
+      const glow = o.glow > 0 ? glowFor(src, W, H, o.glowMode) : null;
       const blob = await renderAny(src, W, H, oo, glow, onProgress);
       return new File([blob], fileName(name, o), { type: "image/jpeg" });
     } finally {
@@ -2010,7 +2038,7 @@ self.onmessage = (e) => {
   }
 
   // settings snapshot (see snap) -> engine options
-  const optsFrom = (j) => { const v = JSON.parse(j); return { amount: Number(v.a), iso: v.i === "half" ? 400 : Number(v.i), bw: v.c === "bw", half: v.i === "half", glow: Number(v.g), soft: Number(v.s) }; };
+  const optsFrom = (j) => { const v = JSON.parse(j); return { amount: Number(v.a), iso: v.i === "half" ? 400 : Number(v.i), bw: v.c === "bw", half: v.i === "half", glow: Number(v.g), glowMode: v.gm || "bloom", soft: Number(v.s) }; };
   async function saveBatch(bar, fill) {
     st.bset[st.bi] = snap();
     const files = st.batch, n = files.length, out = [], t0 = performance.now();
