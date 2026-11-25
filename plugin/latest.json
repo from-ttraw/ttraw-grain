@@ -1,8 +1,8 @@
 {
-  "version": "0.4.8",
-  "notes": "Undo / redo now keeps a separate history for each layer, so it never steps back into another layer's settings. Double-click a slider to reset it.",
-  "notes_ko": "설정 되돌리기가 레이어별로 따로 기록돼서, 다른 레이어의 설정까지 되돌아가지 않아요. 슬라이더 더블클릭 초기화 포함.",
-  "notes_ja": "設定の取り消しがレイヤーごとに記録され、他のレイヤーの設定まで戻らなくなりました。スライダーのダブルクリック初期化を含みます。",
-  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.4.8.ccx",
+  "version": "0.4.9",
+  "notes": "The preview now stays pinned at the top while the settings scroll beneath it. Amount goes up to 150, and every control has a short tooltip.",
+  "notes_ko": "미리보기가 위에 고정되고 설정만 아래에서 스크롤돼요. 양은 최대 150, 모든 항목에 짧은 설명(툴팁)을 넣었어요.",
+  "notes_ja": "プレビューが上に固定され、設定だけが下でスクロールするようになりました。量は最大150、各項目に短い説明（ツールチップ）を追加しました。",
+  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.4.9.ccx",
   "page": "https://from-ttraw.github.io/ttraw-grain/"
 }
