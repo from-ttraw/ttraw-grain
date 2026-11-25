@@ -653,6 +653,15 @@ const GLOW = {
   halation: { threshold: 0.80, knee: 0.98, strength: 3.0, sigmaFrac: 11 / 3089, tint: [1.0, 0.43, 0.10] },
 };
 const glowMode = (o) => (o && o.glowMode === "halation" ? "halation" : "bloom");
+// Halation slider: up to 50 it scales the measured ring (50 = measured); above 50 it goes past film for a stronger look:
+// up to 3x as strong, reaching dimmer highlights (threshold 0.80 → 0.60) and spreading 1.5x wider. The map-shaping part
+// moves in 5 steps, so dragging rebuilds the small glow map only a few times.
+function halationLook(glow) {
+  const raw = pct(glow), u = Math.round(Math.max(0, raw - 0.5) / 0.5 * 5) / 5;
+  const S50 = 0.7 * GLOW.halation.strength;
+  const strength = raw <= 0 ? 0 : raw <= 0.5 ? S50 * (0.35 + 0.65 * raw / 0.5) : S50 * (1 + 2 * (raw - 0.5) / 0.5);
+  return { strength, step: u, threshold: GLOW.halation.threshold - 0.2 * u, widen: 1 + 0.5 * u };
+}
 
 function efxSettings(opts, W, H) {
   const scale = Math.max(W, H) / G.SCAN_LONG_SIDE;
@@ -669,7 +678,7 @@ function efxSettings(opts, W, H) {
   return {
     soft, degrade, glow, kAll, kChroma, margin,
     lift: degrade * 0.025,
-    glowStrength: glow * GLOW[glowMode(opts)].strength, glowMode: glowMode(opts),
+    glowStrength: glowMode(opts) === "halation" ? halationLook(opts.glow).strength : glow * GLOW.bloom.strength, glowMode: glowMode(opts),
     active: !!(kAll || kChroma || degrade > 0 || glow > 0),
     key: `${opts.soft | 0}/${opts.degrade | 0}/${opts.glow | 0}/${glowMode(opts)}`,
   };
@@ -757,8 +766,9 @@ function blurPlane(p, w, h, kern) {
  * Glow map from a low-resolution copy of the whole image (lw x lh, chunky, comp, 0..maxVal).
  * Independent of the Glow slider, so it is built once per image and reused.
  */
-function buildGlowMap(low, lw, lh, comp, maxVal, W, H, mode) {
-  const n = lw * lh, P = GLOW[mode === "halation" ? "halation" : "bloom"], hal = P === GLOW.halation;
+function buildGlowMap(low, lw, lh, comp, maxVal, W, H, mode, glowVal) {
+  const n = lw * lh, hal = mode === "halation", look = hal ? halationLook(glowVal == null ? 50 : glowVal) : null;
+  const P = hal ? Object.assign({}, GLOW.halation, { threshold: look.threshold, sigmaFrac: GLOW.halation.sigmaFrac * look.widen }) : GLOW.bloom;
   const planes = [new Float32Array(n), new Float32Array(n), new Float32Array(n)];
   const inv = 1 / maxVal;
   for (let i = 0, p = 0; i < n; i++, p += comp) {
@@ -774,7 +784,7 @@ function buildGlowMap(low, lw, lh, comp, maxVal, W, H, mode) {
     const a = planes[0];
     blurPlane(a, lw, lh, blurKernel(Math.max(0.8, P.sigmaFrac * Math.max(lw, lh))));
     for (let i = 0; i < n; i++) for (let c = 0; c < 3; c++) out[i * 3 + c] = a[i] * P.tint[c];
-    return { data: out, lw, lh, sx: lw / W, sy: lh / H, mode: "halation" };
+    return { data: out, lw, lh, sx: lw / W, sy: lh / H, mode: "halation", step: look.step };
   }
   const sigma = Math.max(1, P.radiusFrac * Math.max(lw, lh));
   const kSmall = blurKernel(sigma), kWide = blurKernel(sigma * 3);
@@ -938,7 +948,7 @@ function matchGain(sigmaE, rw, inner, pre, comp, maxVal, S, targetLUT, amount) {
 }
 
 
-return { efxSettings, buildGlowMap, applyEfx, blurKernel };
+return { efxSettings, buildGlowMap, applyEfx, blurKernel, halationLook };
 })(Engine);
 </script>
 
@@ -1437,14 +1447,15 @@ self.onmessage = (e) => {
   }
   // glow map: built once per photo from a ~1024 px copy (the glow is wide and soft, full resolution adds nothing)
   function ensureGlow() {
-    if (st.glow && st.glow.mode === gmodePick()) return st.glow;
+    const gmode = gmodePick(), gval = Number($("glow").value), step = gmode === "halation" ? Efx.halationLook(gval).step : 0;
+    if (st.glow && st.glow.mode === gmode && (gmode !== "halation" || st.glow.step === step)) return st.glow;
     let pick = mips[mips.length - 1];
     for (const m of mips) if (Math.max(m.width, m.height) >= 1024) pick = m;
     const sc = Math.min(1, 1024 / Math.max(pick.width, pick.height));
     const lw = Math.max(16, Math.round(pick.width * sc)), lh = Math.max(16, Math.round(pick.height * sc));
     const c = document.createElement("canvas"); c.width = lw; c.height = lh;
     const g = c.getContext("2d", { willReadFrequently: true }); g.imageSmoothingQuality = "high"; g.drawImage(pick, 0, 0, lw, lh);
-    st.glow = Efx.buildGlowMap(g.getImageData(0, 0, lw, lh).data, lw, lh, 4, 255, st.W, st.H, gmodePick());
+    st.glow = Efx.buildGlowMap(g.getImageData(0, 0, lw, lh).data, lw, lh, 4, 255, st.W, st.H, gmode, gval);
     return st.glow;
   }
   function updateUnder() {
@@ -1975,12 +1986,12 @@ self.onmessage = (e) => {
     return st.glow ? { ...st.glow, data: st.glow.data.slice(), sx: st.glow.lw / W, sy: st.glow.lh / H } : null;
   };
   // glow map of any decoded photo, from a ~1024 px copy (same as ensureGlow does for the preview)
-  function glowFor(src, W, H, mode) {
+  function glowFor(src, W, H, mode, gval) {
     const sc = Math.min(1, 1024 / Math.max(W, H));
     const lw = Math.max(16, Math.round(W * sc)), lh = Math.max(16, Math.round(H * sc));
     const c = document.createElement("canvas"); c.width = lw; c.height = lh;
     const g = c.getContext("2d", { willReadFrequently: true }); g.imageSmoothingQuality = "high"; g.drawImage(src, 0, 0, lw, lh);
-    const gm = Efx.buildGlowMap(g.getImageData(0, 0, lw, lh).data, lw, lh, 4, 255, W, H, mode);
+    const gm = Efx.buildGlowMap(g.getImageData(0, 0, lw, lh).data, lw, lh, 4, 255, W, H, mode, gval);
     c.width = c.height = 0;
     return gm;
   }
@@ -1991,7 +2002,7 @@ self.onmessage = (e) => {
       const W = src.width || src.naturalWidth, H = src.height || src.naturalHeight;
       const name = file.name.replace(/\.[^.]+$/, "");
       const oo = { ...o, seed: photoSeed(name, W, H) };   // same pattern this photo would get when opened alone
-      const glow = o.glow > 0 ? glowFor(src, W, H, o.glowMode) : null;
+      const glow = o.glow > 0 ? glowFor(src, W, H, o.glowMode, o.glow) : null;
       const blob = await renderAny(src, W, H, oo, glow, onProgress);
       return new File([blob], fileName(name, o), { type: "image/jpeg" });
     } finally {
