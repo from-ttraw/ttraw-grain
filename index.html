@@ -50,7 +50,7 @@
   html.ios-app-fix .sheet { bottom: env(safe-area-inset-top, 0px); padding-bottom: 12px; }
   /* an app, not a document: holding a button must not start text selection or the iOS callout */
   body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-  input[type="number"] { -webkit-user-select: text; user-select: text; }
+  input.value { -webkit-user-select: text; user-select: text; }
   .result-card img { -webkit-touch-callout: default; } /* long-press to save the result must still work */
   body { font-family: var(--font-body); font-size: 14px; line-height: 1.4; -webkit-tap-highlight-color: transparent; }
 
@@ -257,7 +257,7 @@
     <div class="panes">
 
     <div class="pane" data-pane="amount" role="tabpanel" hidden>
-      <div class="pane-head"><span data-i18n="amount.head">Grain amount</span><input class="value" type="number" id="amountNum" min="0" max="150" step="1" value="100" data-i18n-aria="amount" aria-label="Amount value"></div>
+      <div class="pane-head"><span data-i18n="amount.head">Grain amount</span><input class="value" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="amountNum" min="0" max="150" step="1" value="100" data-i18n-aria="amount" aria-label="Amount value"></div>
       <input type="range" id="amount" min="0" max="150" step="1" value="100" data-i18n-aria="amount" aria-label="Amount">
       <div class="hint" data-i18n="amount.hint">Higher means denser, coarser grain.</div>
     </div>
@@ -286,12 +286,12 @@ frame</span></label>
           <label><input type="radio" name="gmode" value="bloom" checked><span data-i18n="glow.bloom">Bloom</span></label>
           <label><input type="radio" name="gmode" value="halation"><span data-i18n="glow.halation">Halation</span></label>
         </div>
-        <input class="value" type="number" id="glowNum" min="0" max="100" step="1" value="0" aria-label="Glow value"></div>
+        <input class="value" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="glowNum" min="0" max="100" step="1" value="0" aria-label="Glow value"></div>
       <input type="range" id="glow" min="0" max="100" step="1" value="0" aria-label="Glow">
       <div class="hint" id="glowHint" data-i18n="glow.hint">Highlights bloom outward with a faint warm halo.</div>
     </div>
     <div class="pane" data-pane="soft" role="tabpanel" hidden>
-      <div class="pane-head"><span data-i18n="soft">Soft</span><input class="value" type="number" id="softNum" min="0" max="100" step="1" value="0" aria-label="Soft value"></div>
+      <div class="pane-head"><span data-i18n="soft">Soft</span><input class="value" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="softNum" min="0" max="100" step="1" value="0" aria-label="Soft value"></div>
       <input type="range" id="soft" min="0" max="100" step="1" value="0" aria-label="Soft">
       <div class="hint" data-i18n="soft.hint">Takes the edge off digital crispness.</div>
     </div>
@@ -1831,7 +1831,7 @@ self.onmessage = (e) => {
   const sheetEl = $("sheet");
   sheetEl.addEventListener("change", () => setTimeout(commit, 0));
   window.addEventListener("keydown", (e) => {
-    if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "z" || /^(INPUT|TEXTAREA)$/.test(document.activeElement && document.activeElement.tagName) && document.activeElement.type === "number") return;
+    if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "z" || /^(INPUT|TEXTAREA)$/.test(document.activeElement && document.activeElement.tagName) && document.activeElement.classList.contains("value")) return;
     e.preventDefault(); if (e.shiftKey) redo(); else undo();
   });
 
@@ -1844,6 +1844,10 @@ self.onmessage = (e) => {
   document.querySelectorAll(".value").forEach((el) => {
     el.setAttribute("inputmode", "numeric");
     el.addEventListener("keydown", (e) => { if (e.key === "Enter") el.blur(); });
+    // tapping the number selects it all, so typing replaces it (text field: number fields can't be selected on iOS)
+    const selectAll = () => setTimeout(() => { try { el.setSelectionRange(0, el.value.length); } catch (e) { el.select(); } }, 0);
+    el.addEventListener("focus", selectAll);
+    el.addEventListener("pointerup", (e) => { if (document.activeElement === el && el.selectionStart === el.selectionEnd) { e.preventDefault(); selectAll(); } });
   });
   // the keyboard covers the bottom of the screen: while a number field is being typed in, lift the sheet above it
   const sheetBox = $("sheet");
