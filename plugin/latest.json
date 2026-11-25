@@ -1,8 +1,8 @@
 {
-  "version": "0.4.9",
-  "notes": "The preview now stays pinned at the top while the settings scroll beneath it. Amount goes up to 150, and every control has a short tooltip.",
-  "notes_ko": "미리보기가 위에 고정되고 설정만 아래에서 스크롤돼요. 양은 최대 150, 모든 항목에 짧은 설명(툴팁)을 넣었어요.",
-  "notes_ja": "プレビューが上に固定され、設定だけが下でスクロールするようになりました。量は最大150、各項目に短い説明（ツールチップ）を追加しました。",
-  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.4.9.ccx",
+  "version": "0.4.10",
+  "notes": "Glow now has two types: Bloom (as before) and Halation, a thin red-orange ring around bright lights measured from real film scans (above 50 it goes stronger). Copy / Paste settings, and preview tips right under the preview.",
+  "notes_ko": "글로우에 블룸(기존)과 할레이션 두 가지가 생겼어요. 할레이션은 실제 필름 스캔에서 잰 붉은 테이고, 50을 넘으면 더 강해져요. 설정 복사·붙여넣기, 미리보기 바로 아래 사용법 안내도 추가했어요.",
+  "notes_ja": "グローがブルーム（従来）とハレーションの2種類になりました。ハレーションは実際のフィルムスキャンから測った赤いにじみで、50を超えるとより強くなります。設定のコピー・貼り付けと、プレビュー直下の使い方表示も追加しました。",
+  "url": "https://from-ttraw.github.io/ttraw-grain/plugin/ttraw-film-efx-0.4.10.ccx",
   "page": "https://from-ttraw.github.io/ttraw-grain/"
 }
